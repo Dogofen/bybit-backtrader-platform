@@ -46,16 +46,69 @@ class BybitOperations(object):
         self.bybit = bybit.bybit(test=test, api_key=self.API_KEY, api_secret=self.API_SECRET)
         self.logger.info("Finished BybitTools construction, proceeding")
 
+    @staticmethod
+    def get_date():
+        return datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+    @staticmethod
+    def get_month():
+        return datetime.datetime.now().strftime('%m')
+
+    @staticmethod
+    def get_datetime():
+        return datetime.datetime.now()
+
+    @staticmethod
+    def liq_current_time_no_seconds():
+        return datetime.datetime.now().strftime('%d/%m/%Y, %H:%M')
+
+    @staticmethod
+    def get_position_size(position):
+        return position['size']
+
+    @staticmethod
+    def get_position_side(position):
+        return position['side']
+
+    @staticmethod
+    def get_position_price(position):
+        return float(position['entry_price'])
+
     def edit_orders_price(self, symbol, order_id, price):
         order_id = order_id['order_id']
         self.logger.info("editing order:{} price:{}.".format(order_id, price))
         self.bybit.Order.Order_replace(symbol=symbol, order_id=order_id, p_r_price=str(price)).result()
 
+    def get_liquidations(self, symbol):
+        liquidations = False
+        fault_counter = 0
+        while liquidations is False:
+            if fault_counter > 5:
+                self.logger.error("Get liquidations reached it's max tries")
+            try:
+                liquidations = self.bybit.Market.Market_liqRecords(symbol=symbol, limit=1000).result()[0]['result']
+            except Exception as e:
+                self.logger.error("Get liquidations has failed {}".format(e))
+                liquidations = False
+                fault_counter += 1
+        return liquidations
+
+    def get_minute_liquidations(self, symbol):
+        liq_1m_dict = dict()
+        new_liqs = self.get_liquidations(symbol)
+        for liq in new_liqs:
+            liq['time'] = datetime.datetime.fromtimestamp(int(liq['time'] / 1000)).strftime("%d/%m/%Y, %H:%M")
+            if not liq['time'] in liq_1m_dict.keys():
+                liq_1m_dict[liq['time']] = {"Buy": 0, "Sell": 0}
+            liq_1m_dict[liq['time']][liq['side']] += liq['qty']
+
+        if self.liq_current_time_no_seconds() in liq_1m_dict.keys():
+            return liq_1m_dict[self.liq_current_time_no_seconds()]
+        else:
+            return False
+
     def get_stop_order(self):
         return self.orders[0]
-
-    def get_month(self):
-        return datetime.datetime.now().strftime('%m')
 
     def get_day_open(self):
         date_now = datetime.datetime.now()
@@ -78,6 +131,23 @@ class BybitOperations(object):
 
     def get_cash(self, coin):
         return self.bybit.Wallet.Wallet_getBalance(coin=coin).result()[0]['result'][coin]['wallet_balance']
+
+    def get_current_liquidations_dict(self, symbol, from_time_in_minutes):
+        liquidation_dict = {}
+        liq_1m_dict = {}
+        now = datetime.datetime.strptime(self.liq_current_time_no_seconds(), '%d/%m/%Y, %H:%M')
+        liqs_list = self.get_liquidations(symbol)
+        for x in liqs_list:
+            x['time'] = datetime.datetime.fromtimestamp(int(x['time'] / 1000)).strftime("%d/%m/%Y, %H:%M")
+            if not x['time'] in liq_1m_dict.keys():
+                liq_1m_dict[x['time']] = {"Buy": 0, "Sell": 0}
+            liq_1m_dict[x['time']][x['side']] += x['qty']
+        for k in liq_1m_dict.keys():
+            if datetime.datetime.strptime(k, '%d/%m/%Y, %H:%M') > now:
+                continue
+            if datetime.datetime.strptime(k, '%d/%m/%Y, %H:%M') >= from_time_in_minutes:
+                liquidation_dict[k] = liq_1m_dict[k]
+        return liquidation_dict
 
     def edit_stop(self, symbol, stop_id, p_r_qty, p_r_trigger_price):
         try:
@@ -114,8 +184,9 @@ class BybitOperations(object):
             quit()
         return order
 
-    def get_date(self):
-        return datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    def cancel_order(self, symbol, order):
+        order_id = order['order_id']
+        self.bybit.Order.Order_cancel(symbol=symbol, order_id=order_id).result()
 
     def get_kline(self, symbol, interval, _from):
         kline = False
@@ -257,15 +328,6 @@ class BybitOperations(object):
                 fault_counter += 1
                 sleep(2)
         return stop_order
-
-    def get_position_size(self, position):
-        return position['size']
-
-    def get_position_side(self, position):
-        return position['side']
-
-    def get_position_price(self, position):
-        return float(position['entry_price'])
 
     def is_open_position(self, symbol):
         open_position = self.true_get_position(symbol)

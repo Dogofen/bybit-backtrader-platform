@@ -41,9 +41,6 @@ class VwapExtremePointsGatherer(BybitTools):
     def strategy_run(self, symbol, last_price, vwap):
         res = self.has_price_crossed_vwap(last_price, vwap)
         if res:
-            print("Extreme points below vwap: {} Extreme points above vwap: {}".format(
-                self.extreme_points_below_vwap, self.extreme_points_above_vwap)
-            )
             with open('extreme_points_below_vwap', 'wb') as ep:
                 pickle.dump(self.extreme_points_below_vwap, ep)
             with open('extreme_points_above_vwap', 'wb') as ep:

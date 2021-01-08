@@ -5,11 +5,13 @@ from vwap_extreme_points_strategy import VwapExtremePointsStrategy
 from vwap_strategy import VwapStrategy
 from vwap_extreme_points_gatherer import VwapExtremePointsGatherer
 from vwap_combined_strategies import VwapCombinedStrategy
+from liquidations_strategy import LiquidationStrategy
 
 strategy = {'vwap': VwapStrategy,
             'vwap_extreme_points': VwapExtremePointsStrategy,
             'vwap_extreme_points_gatherer': VwapExtremePointsGatherer,
-            'vwap_combined': VwapCombinedStrategy
+            'vwap_combined': VwapCombinedStrategy,
+            'liquidations': LiquidationStrategy
             }
 if '--Test' in sys.argv:
     data = bt.feeds.GenericCSVData(
@@ -20,8 +22,8 @@ if '--Test' in sys.argv:
         open=1,
         volume=5,
         dateformat='%Y-%m-%d %H:%M:%S',
-        fromdate=datetime.datetime(2020, 10, 1, 3, 0, 0),
-        todate=datetime.datetime(2020, 10, 6, 5, 0, 0),
+        fromdate=datetime.datetime(2021, 1, 1, 2, 0, 0),
+        #todate=datetime.datetime(2021, 1, 5, 22, 33, 0),
         timeframe=bt.TimeFrame.Minutes,
         compression=1)
     cerebro = bt.Cerebro()

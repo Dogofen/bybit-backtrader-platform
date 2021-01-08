@@ -1,4 +1,3 @@
-from botlogger import Logger
 import datetime
 from time import sleep
 from bybit_tools import BybitTools
@@ -39,8 +38,6 @@ class VwapStrategy(BybitTools):
         self.logger.info("Initial cash: {} max draw back: {}, {}".format(
             self.cash, self.draw_back_percentage, self.draw_back)
         )
-        bot_logger = Logger()
-        self.logger = bot_logger.init_logger()
         self.logger.info('Applying Vwap Strategy')
 
     def finish_operations_for_trade(self, symbol):
@@ -60,6 +57,9 @@ class VwapStrategy(BybitTools):
         cash = self.get_cash(self.coin)
         if cash < self.draw_back:  # quit if bot lose too much
             self.logger.error(
+                "Asset: {} has passed the max draw back defined: {} thus stopping.".format(cash, self.draw_back)
+            )
+            print(
                 "Asset: {} has passed the max draw back defined: {} thus stopping.".format(cash, self.draw_back)
             )
             quit()
