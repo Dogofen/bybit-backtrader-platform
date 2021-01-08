@@ -227,6 +227,7 @@ class BybitOperations(object):
                 self.logger.error(
                     "Cancel stop Failed, fault counter has {} tries".format(fault_counter)
                 )
+                break
             try:
                 self.logger.info(self.bybit.Conditional.Conditional_cancelAll(symbol=symbol).result())
             except Exception as e:
@@ -240,12 +241,13 @@ class BybitOperations(object):
         while len(self.true_get_active_orders(symbol)) != 0:
             if fault_counter > 5:
                 self.logger.error(
-                    "Cancel stop Failed, fault counter has {} tries".format(fault_counter)
+                    "Cancel orders Failed, fault counter has {} tries".format(fault_counter)
                 )
+                break
             try:
                 self.logger.info(self.bybit.Order.Order_cancelAll(symbol=symbol).result())
             except Exception as e:
-                self.logger.error("Cancel Stop returned: {}".format(e))
+                self.logger.error("Cancel orders returned: {}".format(e))
                 sleep(2)
             fault_counter += 1
             sleep(1)
