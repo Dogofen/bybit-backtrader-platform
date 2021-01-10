@@ -160,9 +160,11 @@ class LiquidationStrategy(BybitTools):
         position = self.true_get_position(symbol)
         self.strategy_run(symbol, position, last_price, vwap)
         while self.live:
-            if datetime.datetime.now().second - 55 < 0:
+            if datetime.datetime.now().second and not self.in_a_trade > 10:
                 sleep(1)
                 continue
+            if self.in_a_trade:
+                sleep(5)
             vwap = self.get_vwap(symbol)
             last_price = self.get_last_price_close(symbol)
             position = self.true_get_position(symbol)

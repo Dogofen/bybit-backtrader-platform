@@ -33,8 +33,8 @@ class BybitTools(BybitOperations):
 
         self.sell_spike_factor = 3
         self.buy_spike_factor = 5
-        self.liquidations_buy_thresh_hold = 315140
-        self.liquidations_sell_thresh_hold = 111815
+        self.liquidations_buy_thresh_hold = 255140
+        self.liquidations_sell_thresh_hold = 951181
         self.minimum_liquidations = 900
         bot_logger = Logger()
         self.logger = bot_logger.init_logger()
@@ -105,7 +105,8 @@ class BybitTools(BybitOperations):
             self.liquidations_sell_thresh_hold = sell_array[len(sell_array) - int(len(sell_array) * 0.8)]
 
     def update_liquidation_dict(self, symbol):
-        from_time_in_minutes = (self.get_datetime() - datetime.timedelta(seconds=600))
+        _now = datetime.datetime.strptime(self.liq_current_time_no_seconds(), '%d/%m/%Y, %H:%M')
+        from_time_in_minutes = (_now - datetime.timedelta(seconds=600))
         self.liquidations_dict = self.get_current_liquidations_dict(symbol, from_time_in_minutes)
 
     def return_datetime_from_liq_dict(self, value, side):

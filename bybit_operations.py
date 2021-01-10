@@ -60,7 +60,7 @@ class BybitOperations(object):
 
     @staticmethod
     def liq_current_time_no_seconds():
-        return datetime.datetime.now().strftime('%d/%m/%Y, %H:%M')
+        return (datetime.datetime.now()-datetime.timedelta(minutes=1)).strftime('%d/%m/%Y, %H:%M')
 
     @staticmethod
     def get_position_size(position):
@@ -85,6 +85,7 @@ class BybitOperations(object):
         while liquidations is False:
             if fault_counter > 5:
                 self.logger.error("Get liquidations reached it's max tries")
+                break
             try:
                 liquidations = self.bybit.Market.Market_liqRecords(symbol=symbol, limit=1000).result()[0]['result']
             except Exception as e:
@@ -273,14 +274,16 @@ class BybitOperations(object):
         position = False
         rate_limit_status = False
         fault_counter = 0
+        size = 0
         while position is False:
             if fault_counter > 5:
                 self.logger.error("position Failed to retrieved fault counter has {} tries".format(fault_counter))
             position = self.bybit.Positions.Positions_myPosition(symbol=symbol).result()[0]
             try:
                 rate_limit_status = position['rate_limit_status']
+                size = position['result']['size']
             except Exception as e:
-                self.logger.error("get position returned: {} error was: {}".format(position, e))
+                self.logger.error("get position returned: {} error was: {} size: {}".format(position, e, size))
                 self.logger.info("self rate limit: {}".format(rate_limit_status))
                 position = False
                 sleep(2)
