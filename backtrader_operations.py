@@ -64,9 +64,6 @@ class BybitOperations(bt.Strategy):
     def get_time(self):
         return bt.num2date(self.datas[0].datetime[0]).strftime('%H:%M:%S')
 
-    def get_day_open(self):
-        return self.day_open_dict[self.get_month()]
-
     def get_current_liquidations_dict(self, symbol, from_time_in_minutes):
         liquidation_dict = {}
         now = datetime.datetime.strptime(self.liq_current_time_no_seconds(), '%d/%m/%Y, %H:%M')
@@ -115,15 +112,24 @@ class BybitOperations(bt.Strategy):
     def get_position_price(self, position):
         return position.price
 
+    def get_time_delta(self, count):
+        _from = float(int(self.get_datetime().timestamp()) - 60 * count)
+        if bt.num2date(self.datas[0].fromdate).timestamp() > _from:
+            return bt.num2date(self.datas[0].fromdate).timestamp()
+        return _from
+
     def get_kline(self, symbol, interval, _from):
         counter = 0
         kline = []
-        while bt.num2date(self.datas[0].datetime[counter]).strftime('%H:%M:%S') != _from:
+        while bt.num2date(self.datas[0].datetime[counter]).timestamp() > _from:
+            if counter > 1440:
+                break
             counter -= 1
         while counter != 1:
             kline.append({
                 "timestamp": bt.num2date(self.datas[0].datetime[counter]).strftime('%Y-%m-%d %H:%M:%S'),
                 "close": self.datas[0].close[counter],
+                "open": self.datas[0].open[counter],
                 "high": self.datas[0].high[counter],
                 "low": self.datas[0].low[counter],
                 "volume": self.datas[0].volume[counter]
@@ -135,6 +141,7 @@ class BybitOperations(bt.Strategy):
         kline = {
             "timestamp": bt.num2date(self.datas[0].datetime[0]).strftime('%Y-%m-%d %H:%M:%S'),
             "close": self.datas[0].close[0],
+            "open": self.datas[0].open[0],
             "high": self.datas[0].high[0],
             "low": self.datas[0].low[0],
             "volume": self.datas[0].volume[0]

@@ -23,7 +23,7 @@ if '--Test' in sys.argv:
         volume=5,
         dateformat='%Y-%m-%d %H:%M:%S',
         fromdate=datetime.datetime(2021, 1, 1, 2, 0, 0),
-        #todate=datetime.datetime(2021, 1, 5, 22, 33, 0),
+        #todate=datetime.datetime(2021, 1, 7, 22, 33, 0),
         timeframe=bt.TimeFrame.Minutes,
         compression=1)
     cerebro = bt.Cerebro()

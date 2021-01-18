@@ -87,7 +87,9 @@ class LiquidationStrategy(BybitTools):
     def put_limit_order(self, symbol, vwap, last_price):
         if last_price > vwap:
             if ((last_price / vwap) - 1) * 100 > float(self.short_entries[self.entry_counter]):
-                if self.get_liquidations_signal("Sell"):
+                sig = self.get_liquidations_signal(symbol, "Sell")
+                if sig:
+
                     self.logger.info(
                         "Creating Limit order with side: Sell and entry: {}".format(
                             self.short_entries[self.entry_counter]
@@ -98,11 +100,13 @@ class LiquidationStrategy(BybitTools):
                             self.liquidations_sell_thresh_hold, self.liquidations_dict
                         )
                     )
-                    self.orders.append(self.limit_order(symbol, "Sell", self.amount, last_price))
+                    self.fill_time = sig['fill_time']
+                    self.orders.append(self.limit_order(symbol, "Sell", self.amount, sig['price']))
                     self.limit_order_time = self.get_datetime()
         if last_price < vwap:
             if ((vwap / last_price) - 1) * 100 > float(self.long_entries[self.entry_counter]):
-                if self.get_liquidations_signal("Buy"):
+                sig = self.get_liquidations_signal(symbol, "Buy")
+                if sig:
                     self.logger.info(
                         "Creating Limit order with side: Buy and entry: {}".format(
                             self.long_entries[self.entry_counter]
@@ -113,7 +117,8 @@ class LiquidationStrategy(BybitTools):
                             self.liquidations_buy_thresh_hold, self.liquidations_dict
                         )
                     )
-                    self.orders.append(self.limit_order(symbol, "Buy", self.amount, last_price))
+                    self.fill_time = sig['fill_time']
+                    self.orders.append(self.limit_order(symbol, "Buy", self.amount, sig['price']))
                     self.limit_order_time = self.get_datetime()
 
     def zero_entry_counter(self, last_price, vwap):
@@ -149,7 +154,8 @@ class LiquidationStrategy(BybitTools):
             self.zero_entry_counter(last_price, vwap)  # If zeroing entry counter is needed between trades
             self.price_above_below_vwap(last_price, vwap)  # determines if price has crossed vwap
 
-        if self.limit_order_time and (self.get_datetime() - self.limit_order_time).seconds > 120:
+        if self.limit_order_time and (self.get_datetime() - self.limit_order_time).seconds > self.fill_time:
+            self.logger.info("Cancelling order as it didn't met time constrains")
             self.limit_order_time = False
             self.cancel_order(symbol, self.orders[0])
 

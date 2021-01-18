@@ -111,14 +111,6 @@ class BybitOperations(object):
     def get_stop_order(self):
         return self.orders[0]
 
-    def get_day_open(self):
-        date_now = datetime.datetime.now()
-        date_from = datetime.datetime.strptime(date_now.strftime('%Y-%m-%d ' '%H:00:00'), '%Y-%m-%d ' '%H:%M:%S')
-        day_open = self.get_time_open()
-        while date_from.strftime('%H:%M:%S') != day_open:
-            date_from = date_from - datetime.timedelta(hours=1)
-        return date_from.timestamp()
-
     def get_time_open(self):
         return self.day_open_dict[self.get_month()]
 
@@ -188,6 +180,7 @@ class BybitOperations(object):
     def cancel_order(self, symbol, order):
         order_id = order['order_id']
         self.bybit.Order.Order_cancel(symbol=symbol, order_id=order_id).result()
+        self.orders.remove(order)
 
     def get_kline(self, symbol, interval, _from):
         kline = False
@@ -252,6 +245,9 @@ class BybitOperations(object):
                 sleep(2)
             fault_counter += 1
             sleep(1)
+
+    def get_time_delta(self, count):
+        return float(int(self.get_datetime().timestamp()) - 60 * count)
 
     def cancel_all_orders(self, symbol):
         if len(self.true_get_stop_order(symbol)) != 0:
