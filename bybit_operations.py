@@ -98,6 +98,10 @@ class BybitOperations(object):
                 fault_counter += 1
         return liquidations
 
+    def get_last_kline(self, symbol, interval):
+        _from = int((datetime.datetime.now()-datetime.timedelta(minutes=2)).timestamp())
+        return self.get_kline(symbol, interval, _from)[-2]
+
     def get_minute_liquidations(self, symbol):
         liq_1m_dict = dict()
         new_liqs = self.get_liquidations(symbol)
@@ -190,18 +194,17 @@ class BybitOperations(object):
         kline = False
         fault_counter = 0
         while not kline:
-            if fault_counter > 5:
+            if fault_counter > 10:
                 self.logger.error("Kline Failed to retrieved fault counter has {} tries".format(fault_counter))
+                break
             try:
                 kline = self.bybit.Kline.Kline_get(
                     symbol=symbol, interval=interval, **{'from': _from}
                 ).result()[0]['result']
-
             except Exception as e:
                 self.logger.error("get Kline returned: {} error was: {}".format(kline, e))
                 kline = False
                 sleep(2)
-
             fault_counter += 1
             sleep(1)
         return kline
