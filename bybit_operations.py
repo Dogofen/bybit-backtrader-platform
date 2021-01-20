@@ -100,7 +100,12 @@ class BybitOperations(object):
 
     def get_last_kline(self, symbol, interval):
         _from = int((datetime.datetime.now()-datetime.timedelta(minutes=2)).timestamp())
-        return self.get_kline(symbol, interval, _from)[-2]
+        lk = self.get_kline(symbol, interval, _from)[-2]
+        lk['open'] = float(lk['open'])
+        lk['close'] = float(lk['close'])
+        lk['high'] = float(lk['high'])
+        lk['low'] = float(lk['low'])
+        return lk
 
     def get_minute_liquidations(self, symbol):
         liq_1m_dict = dict()
