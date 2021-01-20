@@ -245,7 +245,7 @@ class BybitTools(BybitOperations):
         _from = self.get_time_delta(count)
         klines = self.get_kline(symbol, '1', _from)
         for k in klines:
-            klines_array.append(int(k['high']) - int(k['low']))
+            klines_array.append(float(k['high']) - float(k['low']))
         return sum(klines_array) / len(klines_array)
 
     def get_liquidations_signal(self, symbol, side):
