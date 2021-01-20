@@ -74,6 +74,10 @@ class BybitOperations(object):
     def get_position_price(position):
         return float(position['entry_price'])
 
+    @staticmethod
+    def get_start_date():
+        return datetime.datetime.now()
+
     def edit_orders_price(self, symbol, order_id, price):
         order_id = order_id['order_id']
         self.logger.info("editing order:{} price:{}.".format(order_id, price))

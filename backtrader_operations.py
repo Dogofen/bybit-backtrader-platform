@@ -118,6 +118,9 @@ class BybitOperations(bt.Strategy):
             return bt.num2date(self.datas[0].fromdate).timestamp()
         return _from
 
+    def get_start_date(self):
+        return bt.num2date(self.datas[0].fromdate)
+
     def get_kline(self, symbol, interval, _from):
         counter = 0
         kline = []

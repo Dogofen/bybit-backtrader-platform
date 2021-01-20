@@ -13,11 +13,14 @@ class BybitTools(BybitOperations):
     win = False
     last_big_deal = ''
     orders = []
+    stop_trade = {}
     live = False
     fill_time = 0
     average_candle_count = 0
     sell_spike_factor = 0
     buy_spike_factor = 0
+    last_spiky_hill = False
+    last_downhill = False
     minimum_liquidations = 0
     liquidations_dict = {}
     liquidations_buy_thresh_hold = 0
@@ -33,10 +36,16 @@ class BybitTools(BybitOperations):
         self.sell_spike_factor = 3
         self.buy_spike_factor = 5
         self.fill_time = 120
+        self.stop_trade = {
+            'downhill': False,
+            'cliff': False
+        }
         self.average_candle_count = int(self.config['OTHER']['AverageCandleCount'])
-        self.liquidations_buy_thresh_hold = 261426
+        self.liquidations_buy_thresh_hold = 201426
         self.liquidations_sell_thresh_hold = 101241
         self.minimum_liquidations = 900
+        self.last_downhill = self.get_start_date()
+        self.last_spiky_hill = self.get_start_date()
         bot_logger = Logger()
         self.logger = bot_logger.init_logger()
         self.logger.info('Boti Trading system initiated')
@@ -116,7 +125,7 @@ class BybitTools(BybitOperations):
 
     def update_liquidation_dict(self, symbol):
         _now = datetime.datetime.strptime(self.liq_current_time_no_seconds(), '%d/%m/%Y, %H:%M')
-        from_time_in_minutes = (_now - datetime.timedelta(seconds=600))
+        from_time_in_minutes = (_now - datetime.timedelta(seconds=2400))
         self.liquidations_dict = self.get_current_liquidations_dict(symbol, from_time_in_minutes)
 
     def return_datetime_from_liq_dict(self, value, side):
@@ -125,6 +134,19 @@ class BybitTools(BybitOperations):
                 return datetime.datetime.strptime(k, '%d/%m/%Y, %H:%M')
             return False
 
+    def determine_targets_factor(self, symbol):
+        daily_range = self.get_daily_range(symbol)
+        last_price = self.get_last_price_close(symbol)
+        if daily_range/last_price < 0.045:
+            self.logger.info("Targets factor is low {}".format(daily_range/last_price))
+            return 'low'
+        if 0.09 > daily_range/last_price > 0.045:
+            self.logger.info("Targets factor is medium {}".format(daily_range/last_price))
+            return 'medium'
+        else:
+            self.logger.info("Targets factor is high {}".format(daily_range/last_price))
+            return 'high'
+
     def check_spike(self, array, side):
         if array[-1] > self.buy_spike_factor * self.liquidations_buy_thresh_hold:
             if (self.get_datetime() - self.return_datetime_from_liq_dict(array[-1], side)).seconds == 60:
@@ -132,21 +154,55 @@ class BybitTools(BybitOperations):
                 self.logger.info("Returning positive signal based on big Buy liquidations spike")
                 return False
 
-    def check_spiky_hill(self, diff_array, array, th):
+    def check_bullish_hammer(self, symbol, side, buy_array, sell_array, diff_array):
+        if side is "Sell":
+            return False
+        last_candle = self.get_last_kline(symbol, '1')
+        if last_candle['close'] < last_candle['open']:
+            return False
+        if last_candle['open'] - last_candle['low'] > last_candle['close'] - last_candle['open']:
+            print('We have a hammer at {}'.format(self.get_date()))
+        return False
+
+    def check_spiky_hill(self, symbol, side, diff_array, array, th):
+        price_array = []
         if diff_array[-1] < -self.sell_spike_factor * th and diff_array[-2] > self.sell_spike_factor * th:
             if array[-1] / array[-2] < 0.3 and array[-3] / array[-2] < 0.3:
                 if array[-1] > self.minimum_liquidations and array[-3] > self.minimum_liquidations:
-                    #print('Returning positive signal based on spiky_hill pattern {}'.format(self.get_date()))
-                    self.logger.info("Returning positive signal based on 'Spiky hill' liquidations pattern")
-                    return False
+                    first_delta = self.get_datetime() - self.last_downhill
+                    second_delta = self.get_datetime() - self.last_spiky_hill
+                    self.last_spiky_hill = self.get_datetime()
+                    if first_delta.days > 0 or first_delta.seconds > 7200:
+                        if second_delta.days > 0 or second_delta.seconds > 7200:
+                            print('{} Returning positive signal based on spiky_hill pattern'.format(self.get_date()))
+                            self.logger.info("Returning positive signal based on 'Spiky hill' liquidations pattern")
+                            last_bars = self.get_kline(symbol, '1', self.get_time_delta(6))
+                            for lb in last_bars:
+                                price_array.append(lb['high'])
+                                price_array.append(lb['low'])
+                            if side is "Buy":
+                                price = min(price_array)
+                            else:
+                                price = max(price_array)
+                            return {'signal': 'spiky_hill',  'fill_time': 960, 'price': price}
+        return False
 
-    def check_downhill(self, diff_array, th):
-        if diff_array[-1] < -th and diff_array[-2] > th and diff_array[-3] < -th:
-            #print('Returning positive signal based on downhill pattern {}'.format(self.get_date()))
-            self.logger.info("Returning positive signal based on 'downhill' Buy liquidations pattern")
+    def check_downhill(self, symbol, side, buy_array, sell_array, diff_array, th):
+        if self.stop_trade['downhill']:
             return False
+        if buy_array[-1] < self.minimum_liquidations or side is "Sell" or sell_array[-1] > self.minimum_liquidations:
+            return False
+        if diff_array[-1] < -th and diff_array[-2] > th and diff_array[-3] < -self.minimum_liquidations:
+            if (self.get_datetime() - self.return_datetime_from_liq_dict(buy_array[-1], side)).seconds == 60:
+                print('{} Returning positive signal based on downhill pattern'.format(self.get_date()))
+                self.logger.info("Returning positive signal based on 'downhill' Buy liquidations pattern")
+                price = self.get_last_price_close(symbol)
+                return {'signal': 'downhill', 'fill_time': 240, 'price': price}
+        return False
 
     def check_cliff(self, symbol, diff_array, array, side, average_candle):
+        if self.stop_trade['cliff']:
+            return
         lc = self.get_last_kline(symbol, '1')
         candle_length = lc['high'] - lc['low']
         if candle_length < average_candle:
@@ -182,7 +238,7 @@ class BybitTools(BybitOperations):
                     else:
                         when = 'close'
                     price = (lc["high"] + 2 * lc[when]) / 3
-                return {'signal': 'cliff', 'fill_time': 180, 'price': price}
+                return {'signal': 'cliff', 'fill_time': 300, 'price': price}
 
     def get_average_candle(self, symbol, count):
         klines_array = []
@@ -202,10 +258,11 @@ class BybitTools(BybitOperations):
         for k in self.liquidations_dict.keys():
             sell_array.append(self.liquidations_dict[k]["Sell"])
             buy_array.append(self.liquidations_dict[k]["Buy"])
+        buy_array.reverse()
+        sell_array.reverse()
         if side is "Buy":
             if len(buy_array) < 3:
                 return False
-            buy_array.reverse()
             array = buy_array
             diff_array = np.diff(buy_array)
             th = self.liquidations_buy_thresh_hold
@@ -213,20 +270,21 @@ class BybitTools(BybitOperations):
         if side is "Sell":
             if len(sell_array) < 3:
                 return False
-            sell_array.reverse()
             array = sell_array
             diff_array = np.diff(sell_array)
             th = self.liquidations_sell_thresh_hold
 
-        if self.check_spike(array, side):
-            return True
+        #sig = self.check_bullish_hammer(symbol, side, buy_array, sell_array, diff_array)
+        #if sig:
+        #    return sig
 
-        if self.check_spiky_hill(diff_array, array, th):
-            return True
+        #if self.check_spike(array, side):
+        #    return True
 
         if len(array) > 3:
-            if self.check_downhill(diff_array, th):
-                return True
+            sig = self.check_downhill(symbol, side, buy_array, sell_array, diff_array, th)
+            if sig:
+                return sig
             sig = self.check_cliff(symbol, diff_array, array, side, average_candle)
             if sig:
                 return sig
