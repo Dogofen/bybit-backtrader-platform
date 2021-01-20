@@ -204,7 +204,7 @@ class BybitTools(BybitOperations):
         if self.stop_trade['cliff']:
             return
         lc = self.get_last_kline(symbol, '1')
-        candle_length = lc['high'] - lc['low']
+        candle_length = float(lc['high']) - float(lc['low'])
         if candle_length < average_candle:
             return False
         if diff_array[-2] > 0 and diff_array[-1] > 0:
@@ -214,7 +214,7 @@ class BybitTools(BybitOperations):
                 for b in last_bars:
                     price_array.append(b['low'])
                 minimum = min(price_array)
-                if lc['close'] < minimum or (lc['close'] - minimum) / lc['close'] < 0.015:
+                if float(lc['close']) < minimum or (float(lc['close']) - minimum) / float(lc['close']) < 0.015:
                     return False
             if (self.get_datetime() - self.return_datetime_from_liq_dict(array[-1], side)).seconds == 60:
                 print(
