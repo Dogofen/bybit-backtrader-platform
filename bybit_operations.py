@@ -99,12 +99,8 @@ class BybitOperations(object):
         return liquidations
 
     def get_last_kline(self, symbol, interval):
-        _from = int((datetime.datetime.now()-datetime.timedelta(minutes=2)).timestamp())
+        _from = int((datetime.datetime.now()-datetime.timedelta(minutes=3)).timestamp())
         lk = self.get_kline(symbol, interval, _from)[-2]
-        lk['open'] = float(lk['open'])
-        lk['close'] = float(lk['close'])
-        lk['high'] = float(lk['high'])
-        lk['low'] = float(lk['low'])
         return lk
 
     def get_minute_liquidations(self, symbol):
@@ -212,6 +208,10 @@ class BybitOperations(object):
                 sleep(2)
             fault_counter += 1
             sleep(1)
+        for cc in kline:
+            for key in cc.keys():
+                if key == 'high' or key == 'low' or key == 'open' or key == 'close' or key == 'volume':
+                    cc[key] = float(cc[key])
         return kline
 
     def get_last_price_close(self, symbol):
