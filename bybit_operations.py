@@ -9,7 +9,8 @@ class BybitOperations(object):
 
     API_KEY = ''
     API_SECRET = ''
-
+    liq_1m_dict = {}
+    liquidations = []
     orders = []
     logger = ''
     bybit = ''
@@ -59,7 +60,10 @@ class BybitOperations(object):
         return datetime.datetime.now()
 
     @staticmethod
-    def liq_current_time_no_seconds():
+    def liq_current_time_no_seconds(date_time=False):
+        if date_time:
+            dt = datetime.datetime.now()
+            return dt - datetime.timedelta(minutes=1, seconds=dt.second)
         return (datetime.datetime.now()-datetime.timedelta(minutes=1)).strftime('%d/%m/%Y, %H:%M')
 
     @staticmethod
@@ -98,30 +102,44 @@ class BybitOperations(object):
                 fault_counter += 1
         return liquidations
 
+    def update_liquidations(self, symbol):
+        liqs = self.get_liquidations(symbol)
+        place = 0
+        for liq in liqs:
+            if liq in self.liquidations:
+                continue
+            self.liquidations.insert(place, liq)
+            place += 1
+        while len(self.liquidations) > 1500:
+            self.liquidations.pop()
+
     def get_last_kline(self, symbol, interval):
-        _from = int((datetime.datetime.now() - datetime.timedelta(minutes=int(interval) * 3)).timestamp())
-        lk = {}
+        _from = int((datetime.datetime.now() - datetime.timedelta(minutes=int(interval) * 4)).timestamp())
+        kline_time = self.liq_current_time_no_seconds(True)
         kline = []
-        try:
-            kline = self.get_kline(symbol, interval, _from)
-            lk = kline[-2]
-        except Exception as e:
-            self.logger.error("get Kline has failed: {} kline returned was: {}".format(e, kline))
-        return lk
+        attempts = 0
+        while attempts < 10:
+            try:
+                kline = self.get_kline(symbol, interval, _from)
+                for k in kline:
+                    if k['open_time'] == int(kline_time.timestamp()):
+                        return k
+                attempts += 1
+                sleep(2)
+            except Exception as e:
+                self.logger.error("get last Kline has failed: {} kline returned was: {}".format(e, kline))
+                sleep(2)
+        self.logger.error("get last Kline has failed, attempts reached the limit: {}".format(attempts))
+        return False
 
-    def get_minute_liquidations(self, symbol):
+    def update_minute_liquidations_dict(self):
         liq_1m_dict = dict()
-        new_liqs = self.get_liquidations(symbol)
-        for liq in new_liqs:
-            liq['time'] = datetime.datetime.fromtimestamp(int(liq['time'] / 1000)).strftime("%d/%m/%Y, %H:%M")
-            if not liq['time'] in liq_1m_dict.keys():
-                liq_1m_dict[liq['time']] = {"Buy": 0, "Sell": 0}
-            liq_1m_dict[liq['time']][liq['side']] += liq['qty']
-
-        if self.liq_current_time_no_seconds() in liq_1m_dict.keys():
-            return liq_1m_dict[self.liq_current_time_no_seconds()]
-        else:
-            return False
+        for liq in self.liquidations:
+            time = datetime.datetime.fromtimestamp(int(liq['time'] / 1000)).strftime("%d/%m/%Y, %H:%M")
+            if time not in liq_1m_dict.keys():
+                liq_1m_dict[time] = {"Buy": 0, "Sell": 0}
+            liq_1m_dict[time][liq['side']] += liq['qty']
+        self.liq_1m_dict = liq_1m_dict
 
     def get_stop_order(self):
         return self.orders[0]
@@ -140,21 +158,15 @@ class BybitOperations(object):
     def get_cash(self, coin):
         return self.bybit.Wallet.Wallet_getBalance(coin=coin).result()[0]['result'][coin]['wallet_balance']
 
-    def get_current_liquidations_dict(self, symbol, from_time_in_minutes):
+    def get_current_liquidations_dict(self, from_time_in_minutes):
         liquidation_dict = {}
-        liq_1m_dict = {}
         now = datetime.datetime.strptime(self.liq_current_time_no_seconds(), '%d/%m/%Y, %H:%M')
-        liqs_list = self.get_liquidations(symbol)
-        for x in liqs_list:
-            x['time'] = datetime.datetime.fromtimestamp(int(x['time'] / 1000)).strftime("%d/%m/%Y, %H:%M")
-            if not x['time'] in liq_1m_dict.keys():
-                liq_1m_dict[x['time']] = {"Buy": 0, "Sell": 0}
-            liq_1m_dict[x['time']][x['side']] += x['qty']
-        for k in liq_1m_dict.keys():
+        self.update_minute_liquidations_dict()
+        for k in self.liq_1m_dict.keys():
             if datetime.datetime.strptime(k, '%d/%m/%Y, %H:%M') > now:
                 continue
             if datetime.datetime.strptime(k, '%d/%m/%Y, %H:%M') >= from_time_in_minutes:
-                liquidation_dict[k] = liq_1m_dict[k]
+                liquidation_dict[k] = self.liq_1m_dict[k]
         return liquidation_dict
 
     def edit_stop(self, symbol, stop_id, p_r_qty, p_r_trigger_price):

@@ -126,7 +126,7 @@ class BybitTools(BybitOperations):
     def update_liquidation_dict(self, symbol):
         _now = datetime.datetime.strptime(self.liq_current_time_no_seconds(), '%d/%m/%Y, %H:%M')
         from_time_in_minutes = (_now - datetime.timedelta(seconds=2400))
-        self.liquidations_dict = self.get_current_liquidations_dict(symbol, from_time_in_minutes)
+        self.liquidations_dict = self.get_current_liquidations_dict(from_time_in_minutes)
 
     def return_datetime_from_liq_dict(self, value, side):
         for k in self.liquidations_dict.keys():
@@ -154,15 +154,15 @@ class BybitTools(BybitOperations):
                 self.logger.info("Returning positive signal based on big Buy liquidations spike")
                 return False
 
-    def check_bullish_hammer(self, symbol, side, buy_array, sell_array, diff_array):
-        if side is "Sell":
-            return False
-        last_candle = self.get_last_kline(symbol, '1')
-        if last_candle['close'] < last_candle['open']:
-            return False
-        if last_candle['open'] - last_candle['low'] > last_candle['close'] - last_candle['open']:
-            print('We have a hammer at {}'.format(self.get_date()))
-        return False
+    #def check_bullish_hammer(self, symbol, side, buy_array, sell_array, diff_array):
+    #    if side is "Sell":
+    #        return False
+    #    last_candle = self.get_last_kline(symbol, '1')
+    #    if last_candle['close'] < last_candle['open']:
+    #        return False
+    #    if last_candle['open'] - last_candle['low'] > last_candle['close'] - last_candle['open']:
+    #        print('We have a hammer at {}'.format(self.get_date()))
+    #    return False
 
     def check_spiky_hill(self, symbol, side, diff_array, array, th):
         price_array = []

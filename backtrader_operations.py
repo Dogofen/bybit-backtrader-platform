@@ -64,7 +64,7 @@ class BybitOperations(bt.Strategy):
     def get_time(self):
         return bt.num2date(self.datas[0].datetime[0]).strftime('%H:%M:%S')
 
-    def get_current_liquidations_dict(self, symbol, from_time_in_minutes):
+    def get_current_liquidations_dict(self, from_time_in_minutes):
         liquidation_dict = {}
         now = datetime.datetime.strptime(self.liq_current_time_no_seconds(), '%d/%m/%Y, %H:%M')
         for k in self.liqs_1m.keys():
@@ -106,7 +106,9 @@ class BybitOperations(bt.Strategy):
             return "Buy"
         return "Sell"
 
-    def liq_current_time_no_seconds(self):
+    def liq_current_time_no_seconds(self, date_time=False):
+        if date_time:
+            return bt.num2date(self.datas[0].datetime[0])
         return bt.num2date(self.datas[0].datetime[0]).strftime('%d/%m/%Y, %H:%M')
 
     def get_position_price(self, position):
