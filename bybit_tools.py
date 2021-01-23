@@ -204,6 +204,9 @@ class BybitTools(BybitOperations):
         if self.stop_trade['cliff']:
             return
         lc = self.get_last_kline(symbol, '1')
+        if not lc:
+            self.logger.warning("Cliff could not finished, exiting with 'False'")
+            return False
         candle_length = lc['high'] - lc['low']
         if candle_length < average_candle:
             return False
