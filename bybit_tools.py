@@ -193,6 +193,8 @@ class BybitTools(BybitOperations):
         if self.stop_trade['downhill']:
             return False
         if buy_array[-1] < self.minimum_liquidations or side is "Sell" or sell_array[-1] > self.minimum_liquidations:
+            if '--Test' not in sys.argv:
+                self.logger.info("Downhill returned False, side:{} liq dict:{}".format(side, self.liquidations_dict))
             return False
         if diff_array[-1] < -th and diff_array[-2] > th and diff_array[-3] < -self.minimum_liquidations:
             if (self.get_datetime() - self.return_datetime_from_liq_dict(buy_array[-1], side)).seconds == 60:
@@ -200,6 +202,8 @@ class BybitTools(BybitOperations):
                 self.logger.info("Returning positive signal based on 'downhill' Buy liquidations pattern")
                 price = self.get_last_price_close(symbol)
                 return {'signal': 'downhill', 'fill_time': 240, 'price': price}
+        if '--Test' not in sys.argv:
+            self.logger.info("Downhill returned False, side:{} liq dict:{}".format(side, self.liquidations_dict))
         return False
 
     def check_cliff(self, symbol, diff_array, array, side, average_candle):
@@ -244,6 +248,9 @@ class BybitTools(BybitOperations):
                         when = 'close'
                     price = (lc["high"] + 2 * lc[when]) / 3
                 return {'signal': 'cliff', 'fill_time': 300, 'price': price}
+        if '--Test' not in sys.argv:
+            self.logger.info("Cliff returned False, side:{} liq dict:{}".format(side, self.liquidations_dict))
+        return False
 
     def get_average_candle(self, symbol, count):
         klines_array = []
