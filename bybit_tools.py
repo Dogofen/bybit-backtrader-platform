@@ -215,6 +215,11 @@ class BybitTools(BybitOperations):
             return False
         candle_length = lc['high'] - lc['low']
         if candle_length < average_candle:
+            if '--Test' not in sys.argv:
+                self.logger.info("Cliff returned False, average candle: {} > candle length {}".format(
+                    average_candle,
+                    candle_length)
+                )
             return False
         if diff_array[-2] > 0 and diff_array[-1] > 0:
             if side is "Buy":
