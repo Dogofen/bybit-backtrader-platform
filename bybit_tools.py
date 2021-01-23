@@ -132,7 +132,7 @@ class BybitTools(BybitOperations):
         for k in self.liquidations_dict.keys():
             if self.liquidations_dict[k][side] == value:
                 return datetime.datetime.strptime(k, '%d/%m/%Y, %H:%M')
-            return False
+        return False
 
     def determine_targets_factor(self, symbol):
         daily_range = self.get_daily_range(symbol)
@@ -154,6 +154,8 @@ class BybitTools(BybitOperations):
                 self.logger.info("Returning positive signal based on big Buy liquidations spike")
                 price = self.get_last_price_close(symbol)
                 return {'signal': 'spike', 'fill_time': 240, 'price': price}
+        if '--Test' not in sys.argv:
+            self.logger.info("Spike returned False, side:{} liq dict:{}".format(side, self.liquidations_dict))
         return False
 
     #def check_bullish_hammer(self, symbol, side, buy_array, sell_array, diff_array):
