@@ -33,8 +33,8 @@ class BybitTools(BybitOperations):
         else:
             self.live = True
 
-        self.sell_spike_factor = 3
-        self.buy_spike_factor = 5
+        self.sell_spike_factor = 0.5
+        self.buy_spike_factor = 0.5
         self.fill_time = 120
         self.stop_trade = {
             'downhill': False,
@@ -147,12 +147,14 @@ class BybitTools(BybitOperations):
             self.logger.info("Targets factor is high {}".format(daily_range/last_price))
             return 'high'
 
-    def check_spike(self, array, side):
+    def check_spike(self, symbol, array, side):
         if array[-1] > self.buy_spike_factor * self.liquidations_buy_thresh_hold:
             if (self.get_datetime() - self.return_datetime_from_liq_dict(array[-1], side)).seconds == 60:
                 #print('Returning positive signal based on liquidations spike {}'.format(self.get_date()))
                 self.logger.info("Returning positive signal based on big Buy liquidations spike")
-                return False
+                price = self.get_last_price_close(symbol)
+                return {'signal': 'spike', 'fill_time': 240, 'price': price}
+        return False
 
     #def check_bullish_hammer(self, symbol, side, buy_array, sell_array, diff_array):
     #    if side is "Sell":
@@ -281,8 +283,9 @@ class BybitTools(BybitOperations):
         #if sig:
         #    return sig
 
-        #if self.check_spike(array, side):
-        #    return True
+        sig = self.check_spike(symbol, array, side)
+        if sig:
+            return sig
 
         if len(array) > 3:
             sig = self.check_downhill(symbol, side, buy_array, sell_array, diff_array, th)
