@@ -148,7 +148,7 @@ class LiquidationStrategy(BybitTools):
 
     def strategy_run(self, symbol, position, last_price, vwap):
         position_size = self.get_position_size(position)
-        self.update_liquidation_dict(symbol)
+        self.update_liquidation_dict()
         dt = self.get_datetime()
         for key in self.stop_trade.keys():
             if self.stop_trade[key] and dt > self.stop_trade[key]:

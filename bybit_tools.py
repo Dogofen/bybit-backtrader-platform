@@ -123,7 +123,7 @@ class BybitTools(BybitOperations):
         if len(sell_array) > 3:
             self.liquidations_sell_thresh_hold = sell_array[len(sell_array) - int(len(sell_array) * 0.8)]
 
-    def update_liquidation_dict(self, symbol):
+    def update_liquidation_dict(self):
         _now = datetime.datetime.strptime(self.liq_current_time_no_seconds(), '%d/%m/%Y, %H:%M')
         from_time_in_minutes = (_now - datetime.timedelta(seconds=2400))
         self.liquidations_dict = self.get_current_liquidations_dict(from_time_in_minutes)
@@ -224,6 +224,9 @@ class BybitTools(BybitOperations):
                     price_array.append(b['low'])
                 minimum = min(price_array)
                 if lc['close'] < minimum or (lc['close'] - minimum) / lc['close'] < 0.015:
+                    if '--Test' not in sys.argv:
+                        self.logger.info(
+                            "Cliff returned False, side:{} liq dict:{}".format(side, self.liquidations_dict))
                     return False
             if (self.get_datetime() - self.return_datetime_from_liq_dict(array[-1], side)).seconds == 60:
                 print(
