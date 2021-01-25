@@ -17,12 +17,10 @@ class BybitTools(BybitOperations):
     live = False
     fill_time = 0
     average_candle_count = 0
-    sell_spike_factor = 0
-    buy_spike_factor = 0
+    spike_factor = 0
     last_spiky_hill = False
     last_downhill = False
     minimum_liquidations = 0
-    liquidations_dict = {}
     liquidations_buy_thresh_hold = 0
     liquidations_sell_thresh_hold = 0
 
@@ -33,8 +31,7 @@ class BybitTools(BybitOperations):
         else:
             self.live = True
 
-        self.sell_spike_factor = 0.5
-        self.buy_spike_factor = 0.5
+        self.spike_factor = 4
         self.fill_time = 120
         self.stop_trade = {
             'downhill': False,
@@ -128,19 +125,13 @@ class BybitTools(BybitOperations):
         from_time_in_minutes = (_now - datetime.timedelta(seconds=2400))
         self.liquidations_dict = self.get_current_liquidations_dict(from_time_in_minutes)
 
-    def return_datetime_from_liq_dict(self, value, side):
-        for k in self.liquidations_dict.keys():
-            if self.liquidations_dict[k][side] == value:
-                return datetime.datetime.strptime(k, '%d/%m/%Y, %H:%M')
-        return False
-
     def determine_targets_factor(self, symbol):
         daily_range = self.get_daily_range(symbol)
         last_price = self.get_last_price_close(symbol)
-        if daily_range/last_price < 0.045:
+        if daily_range/last_price < 0.05:
             self.logger.info("Targets factor is low {}".format(daily_range/last_price))
             return 'low'
-        if 0.09 > daily_range/last_price > 0.045:
+        if 0.09 > daily_range/last_price > 0.05:
             self.logger.info("Targets factor is medium {}".format(daily_range/last_price))
             return 'medium'
         else:
@@ -148,12 +139,18 @@ class BybitTools(BybitOperations):
             return 'high'
 
     def check_spike(self, symbol, array, side):
-        if array[-1] > self.buy_spike_factor * self.liquidations_buy_thresh_hold:
-            if 120 > (self.get_datetime() - self.return_datetime_from_liq_dict(array[-1], side)).seconds >= 60:
-                #print('Returning positive signal based on liquidations spike {}'.format(self.get_date()))
-                self.logger.info("Returning positive signal based on big Buy liquidations spike")
-                price = self.get_last_price_close(symbol)
-                return {'signal': 'spike', 'fill_time': 240, 'price': price}
+        p_array = []
+        if side is "Buy":
+            if array[-1] > self.spike_factor * self.liquidations_buy_thresh_hold:
+                if 120 > (self.get_datetime() - self.return_datetime_from_liq_dict(array[-1], side)).seconds >= 60:
+                    print('Returning positive signal based on liquidations spike {}'.format(self.get_date()))
+                    self.logger.info("Returning positive signal based on liquidations spike")
+                    kline = self.get_kline(symbol, '1', self.get_time_delta(3))
+                    for k in kline:
+                        p_array.append(k['low'])
+                    price = min(p_array)
+                    return {'signal': 'spike', 'fill_time': 960, 'price': price}
+
         if '--Test' not in sys.argv:
             self.logger.info("Spike returned False, side:{} liq dict:{}".format(side, self.liquidations_dict))
         return False
@@ -300,9 +297,9 @@ class BybitTools(BybitOperations):
         #if sig:
         #    return sig
 
-        sig = self.check_spike(symbol, array, side)
-        if sig:
-            return sig
+        #sig = self.check_spike(symbol, array, side)
+        #if sig:
+        #    return sig
 
         if len(array) > 3:
             sig = self.check_downhill(symbol, side, buy_array, sell_array, diff_array, th)

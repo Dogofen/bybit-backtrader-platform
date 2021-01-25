@@ -8,6 +8,7 @@ from botlogger import Logger
 class BybitOperations(object):
 
     API_KEY = ''
+    liquidations_dict = {}
     API_SECRET = ''
     liq_1m_dict = {}
     liquidations = []
@@ -203,6 +204,12 @@ class BybitOperations(object):
             self.logger.error("Create Trade Failed {}".format(e))
             quit()
         return order
+
+    def return_datetime_from_liq_dict(self, value, side):
+        for k in self.liquidations_dict.keys():
+            if self.liquidations_dict[k][side] == value:
+                return datetime.datetime.strptime(k, '%d/%m/%Y, %H:%M') + datetime.timedelta(minutes=1)
+        return False
 
     def cancel_order(self, symbol, order):
         order_id = order['order_id']

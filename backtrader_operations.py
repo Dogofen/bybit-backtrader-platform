@@ -11,6 +11,7 @@ class BybitOperations(bt.Strategy):
     order = ''
     liqs = []
     liqs_1m = {}
+    liquidations_dict = {}
     day_open_dict = {
         '01': "02:00:00",
         '02': "02:00:00",
@@ -113,6 +114,12 @@ class BybitOperations(bt.Strategy):
 
     def get_position_price(self, position):
         return position.price
+
+    def return_datetime_from_liq_dict(self, value, side):
+        for k in self.liquidations_dict.keys():
+            if self.liquidations_dict[k][side] == value:
+                return datetime.datetime.strptime(k, '%d/%m/%Y, %H:%M')
+        return False
 
     def get_time_delta(self, count):
         _from = float(int(self.get_datetime().timestamp()) - 60 * count)

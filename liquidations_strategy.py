@@ -148,7 +148,6 @@ class LiquidationStrategy(BybitTools):
 
     def strategy_run(self, symbol, position, last_price, vwap):
         position_size = self.get_position_size(position)
-        self.update_liquidation_dict()
         dt = self.get_datetime()
         for key in self.stop_trade.keys():
             if self.stop_trade[key] and dt > self.stop_trade[key]:
@@ -162,8 +161,9 @@ class LiquidationStrategy(BybitTools):
         if position_size != 0 and not self.in_a_trade:  # When limit order just accepted
             self.start_trade(symbol, position)
 
-        if not self.in_a_trade and len(self.orders) == 0:  # Send First Limit order
-            self.put_limit_order(symbol, vwap, last_price)
+        if not self.in_a_trade and len(self.orders) == 0:
+            self.update_liquidation_dict()
+            self.put_limit_order(symbol, vwap, last_price) # Send First Limit order
 
         if self.limit_order_time and (self.get_datetime() - self.limit_order_time).seconds > self.fill_time:
             self.logger.info("Cancelling order as it didn't met time constrains")
