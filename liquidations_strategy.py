@@ -112,7 +112,7 @@ class LiquidationStrategy(BybitTools):
     def put_limit_order(self, symbol, vwap, last_price):
         if last_price > vwap:
             if ((last_price / vwap) - 1) * 100 > float(self.short_entries[self.entry_counter]):
-                self.signal = self.get_liquidations_signal(symbol, "Sell")
+                self.signal = self.get_liquidations_signal(symbol, "Sell", vwap)
                 if self.signal:
 
                     self.logger.info(
@@ -130,7 +130,7 @@ class LiquidationStrategy(BybitTools):
                     self.limit_order_time = self.get_datetime()
         if last_price < vwap:
             if ((vwap / last_price) - 1) * 100 > float(self.long_entries[self.entry_counter]):
-                self.signal = self.get_liquidations_signal(symbol, "Buy")
+                self.signal = self.get_liquidations_signal(symbol, "Buy", vwap)
                 if self.signal:
                     self.logger.info(
                         "Creating Limit order with side: Buy and entry: {}".format(
@@ -163,7 +163,7 @@ class LiquidationStrategy(BybitTools):
 
         if not self.in_a_trade and len(self.orders) == 0:
             self.update_liquidation_dict()
-            self.put_limit_order(symbol, vwap, last_price) # Send First Limit order
+            self.put_limit_order(symbol, vwap, last_price)  # Send First Limit order
 
         if self.limit_order_time and (self.get_datetime() - self.limit_order_time).seconds > self.fill_time:
             self.logger.info("Cancelling order as it didn't met time constrains")

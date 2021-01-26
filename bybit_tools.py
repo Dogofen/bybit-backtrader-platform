@@ -18,6 +18,7 @@ class BybitTools(BybitOperations):
     fill_time = 0
     average_candle_count = 0
     spike_factor = 0
+    vlf_bullish_price = 0
     last_spiky_hill = False
     last_downhill = False
     minimum_liquidations = 0
@@ -40,6 +41,7 @@ class BybitTools(BybitOperations):
         self.average_candle_count = int(self.config['OTHER']['AverageCandleCount'])
         self.liquidations_buy_thresh_hold = 201426
         self.liquidations_sell_thresh_hold = 101241
+        self.vlf_bullish_price = 10 * self.liquidations_buy_thresh_hold
         self.minimum_liquidations = 900
         self.last_downhill = self.get_start_date()
         self.last_spiky_hill = self.get_start_date()
@@ -138,24 +140,29 @@ class BybitTools(BybitOperations):
             self.logger.info("Targets factor is high {}".format(daily_range/last_price))
             return 'high'
 
-    def check_spike(self, symbol, array, side):
-        p_array = []
+    def check_vwap_liquidation_fibonacci_bullish(self, symbol, array, side, vwap):
         if side is "Buy":
+            last_price = self.get_last_price_close(symbol)
+            if self.vlf_bullish_price < last_price + last_price * 0.005:
+                self.vlf_bullish_price = 10 * self.liquidations_buy_thresh_hold
+                print('{} vwap_liquidation_fibonacci True'.format(self.get_date()))
+                self.logger.info("vwap_liquidation_fibonacci True")
+                return {'signal': 'vlf', 'fill_time': 900, 'price': self.vlf_bullish_price}
             if array[-1] > self.spike_factor * self.liquidations_buy_thresh_hold:
                 if 120 > (self.get_datetime() - self.return_datetime_from_liq_dict(array[-1], side)).seconds >= 60:
-                    print('{} Returning positive signal based on liquidations spike, liqs are: {}'.format(
-                        self.get_date(), array[-1])
+                    if array[-1] < 1700000:
+                        factor = 0.618
+                    else:
+                        factor = 0.236
+                    price = last_price - (vwap - last_price) * factor
+                    print('{} vwap_liquidation_fibonacci price update, liqs are: {} factor: {} price: {}'.format(
+                        self.get_date(), array[-1], factor, price)
                     )
-                    self.logger.info("Returning positive signal based on liquidations spike")
-                    kline = self.get_kline(symbol, '1', self.get_time_delta(3))
-                    for k in kline:
-                        p_array.append(k['low'])
-                    price = min(p_array)
-                    #return {'signal': 'spike', 'fill_time': 960, 'price': price}
-                    return False
-
-        if '--Test' not in sys.argv:
-            self.logger.info("Spike returned False, side:{} liq dict:{}".format(side, self.liquidations_dict))
+                    self.logger.info(
+                        "vwap_liquidation_fibonacci price update, liqs are: {} factor: {} price: {}".format(
+                            self.get_date(), array[-1], factor, price)
+                    )
+                    self.vlf_bullish_price = price
         return False
 
     #def check_bullish_hammer(self, symbol, side, buy_array, sell_array, diff_array):
@@ -257,7 +264,7 @@ class BybitTools(BybitOperations):
                     else:
                         when = 'close'
                     price = int((lc["high"] + 2 * lc[when]) / 3)
-                return {'signal': 'cliff', 'fill_time': 300, 'price': price}
+                return {'signal': 'cliff', 'fill_time': 540, 'price': price}
         if '--Test' not in sys.argv:
             self.logger.info("Cliff returned False, side:{} liq dict:{}".format(side, self.liquidations_dict))
         return False
@@ -270,7 +277,7 @@ class BybitTools(BybitOperations):
             klines_array.append(float(k['high']) - float(k['low']))
         return sum(klines_array) / len(klines_array)
 
-    def get_liquidations_signal(self, symbol, side):
+    def get_liquidations_signal(self, symbol, side, vwap):
         sell_array = []
         buy_array = []
         array = []
@@ -300,17 +307,17 @@ class BybitTools(BybitOperations):
         #if sig:
         #    return sig
 
-        #sig = self.check_spike(symbol, array, side)
-        #if sig:
-        #    return sig
+        sig = self.check_vwap_liquidation_fibonacci_bullish(symbol, array, side, vwap)
+        if sig:
+            return sig
 
-        if len(array) > 3:
-            sig = self.check_downhill(symbol, side, buy_array, sell_array, diff_array, th)
-            if sig:
-                return sig
-            sig = self.check_cliff(symbol, diff_array, array, side, average_candle)
-            if sig:
-                return sig
+        #if len(array) > 3:
+        #    sig = self.check_downhill(symbol, side, buy_array, sell_array, diff_array, th)
+        #    if sig:
+        #        return sig
+        #    sig = self.check_cliff(symbol, diff_array, array, side, average_candle)
+        #    if sig:
+        #        return sig
 
         return False
 
