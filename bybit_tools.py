@@ -143,13 +143,16 @@ class BybitTools(BybitOperations):
         if side is "Buy":
             if array[-1] > self.spike_factor * self.liquidations_buy_thresh_hold:
                 if 120 > (self.get_datetime() - self.return_datetime_from_liq_dict(array[-1], side)).seconds >= 60:
-                    print('Returning positive signal based on liquidations spike {}'.format(self.get_date()))
+                    print('{} Returning positive signal based on liquidations spike, liqs are: {}'.format(
+                        self.get_date(), array[-1])
+                    )
                     self.logger.info("Returning positive signal based on liquidations spike")
                     kline = self.get_kline(symbol, '1', self.get_time_delta(3))
                     for k in kline:
                         p_array.append(k['low'])
                     price = min(p_array)
-                    return {'signal': 'spike', 'fill_time': 960, 'price': price}
+                    #return {'signal': 'spike', 'fill_time': 960, 'price': price}
+                    return False
 
         if '--Test' not in sys.argv:
             self.logger.info("Spike returned False, side:{} liq dict:{}".format(side, self.liquidations_dict))
@@ -247,13 +250,13 @@ class BybitTools(BybitOperations):
                         when = 'open'
                     else:
                         when = 'close'
-                    price = (lc["low"] + 2 * lc[when]) / 3
+                    price = int((lc["low"] + 2 * lc[when]) / 3)
                 else:
                     if lc['open'] > lc['close']:
                         when = 'open'
                     else:
                         when = 'close'
-                    price = (lc["high"] + 2 * lc[when]) / 3
+                    price = int((lc["high"] + 2 * lc[when]) / 3)
                 return {'signal': 'cliff', 'fill_time': 300, 'price': price}
         if '--Test' not in sys.argv:
             self.logger.info("Cliff returned False, side:{} liq dict:{}".format(side, self.liquidations_dict))
