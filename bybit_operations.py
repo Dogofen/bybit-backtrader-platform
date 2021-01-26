@@ -184,6 +184,7 @@ class BybitOperations(object):
 
     def create_order(self, order_type, symbol, side, amount, price):
         order = False
+        order_status = False
         self.logger.info(
             "Sending a Create Order command type => {} side =>{} amount=>{} price=>{}".format(
                 order_type,
@@ -191,18 +192,21 @@ class BybitOperations(object):
                 amount,
                 price)
         )
-        try:
-            order = self.bybit.Order.Order_new(
-                side=side,
-                symbol=symbol,
-                order_type=order_type,
-                qty=amount,
-                price=price,
-                time_in_force="GoodTillCancel"
-            ).result()[0]['result']
-        except Exception as e:
-            self.logger.error("Create Trade Failed {}".format(e))
-            quit()
+        while order_status != 'Created':
+            try:
+                order = self.bybit.Order.Order_new(
+                    side=side,
+                    symbol=symbol,
+                    order_type=order_type,
+                    qty=amount,
+                    price=price,
+                    time_in_force="GoodTillCancel"
+                ).result()[0]['result']
+                order_status = order['order_status']
+            except Exception as e:
+                self.logger.error("Create Trade Failed {}".format(e))
+                order_status = False
+                sleep(3)
         return order
 
     def return_datetime_from_liq_dict(self, value, side):
