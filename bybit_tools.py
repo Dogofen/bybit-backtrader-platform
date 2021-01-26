@@ -257,7 +257,7 @@ class BybitTools(BybitOperations):
                     else:
                         when = 'close'
                     price = int((lc["high"] + 2 * lc[when]) / 3)
-                return {'signal': 'cliff', 'fill_time': 300, 'price': price}
+                return {'signal': 'cliff', 'fill_time': 540, 'price': price}
         if '--Test' not in sys.argv:
             self.logger.info("Cliff returned False, side:{} liq dict:{}".format(side, self.liquidations_dict))
         return False

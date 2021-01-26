@@ -183,6 +183,7 @@ class BybitOperations(object):
             self.logger.error("edit stop order Failed {}".format(e))
 
     def create_order(self, order_type, symbol, side, amount, price):
+        price = int(price)
         order = False
         order_status = False
         self.logger.info(
