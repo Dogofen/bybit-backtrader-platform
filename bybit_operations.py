@@ -316,8 +316,9 @@ class BybitOperations(object):
         fault_counter = 0
         size = 0
         while position is False:
-            if fault_counter > 5:
+            if fault_counter > 10:
                 self.logger.error("position Failed to retrieved fault counter has {} tries".format(fault_counter))
+                break
             position = self.bybit.Positions.Positions_myPosition(symbol=symbol).result()[0]
             try:
                 rate_limit_status = position['rate_limit_status']
