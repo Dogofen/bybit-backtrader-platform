@@ -256,7 +256,11 @@ class BybitOperations(object):
             )
         except Exception as e:
             self.logger.error("get Kline returned: {} error was: {}".format(kline, e))
-        return int(float(kline[0]['close']))
+        try:
+            return int(float(kline[0]['close']))
+        except Exception as e:
+            self.logger.error("Get last kline has failed: {}".format(e))
+            return False
 
     def true_cancel_stop(self, symbol):
         fault_counter = 0
