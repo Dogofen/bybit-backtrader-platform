@@ -111,40 +111,37 @@ class LiquidationStrategy(BybitTools):
 
     def put_limit_order(self, symbol, vwap, last_price):
         if last_price > vwap:
-            if ((last_price / vwap) - 1) * 100 > float(self.short_entries[self.entry_counter]):
-                self.signal = self.get_liquidations_signal(symbol, "Sell")
-                if self.signal:
-
-                    self.logger.info(
-                        "Creating Limit order with side: Sell and entry: {}".format(
-                            self.short_entries[self.entry_counter]
-                        )
+            self.signal = self.get_liquidations_signal(symbol, "Sell", vwap, last_price)
+            if self.signal:
+                self.logger.info(
+                    "Creating Limit order with side: Sell and entry: {}".format(
+                        self.short_entries[self.entry_counter]
                     )
-                    self.logger.info(
-                        "liquidations thresh hold for Sell: {} liquidations are {}".format(
-                            self.liquidations_sell_thresh_hold, self.liquidations_dict
-                        )
+                )
+                self.logger.info(
+                    "liquidations thresh hold for Sell: {} liquidations are {}".format(
+                        self.liquidations_sell_thresh_hold, self.liquidations_dict
                     )
-                    self.fill_time = self.signal['fill_time']
-                    self.orders.append(self.limit_order(symbol, "Sell", self.amount, self.signal['price']))
-                    self.limit_order_time = self.get_datetime()
+                )
+                self.fill_time = self.signal['fill_time']
+                self.orders.append(self.limit_order(symbol, "Sell", self.amount, self.signal['price']))
+                self.limit_order_time = self.get_datetime()
         if last_price < vwap:
-            if ((vwap / last_price) - 1) * 100 > float(self.long_entries[self.entry_counter]):
-                self.signal = self.get_liquidations_signal(symbol, "Buy")
-                if self.signal:
-                    self.logger.info(
-                        "Creating Limit order with side: Buy and entry: {}".format(
-                            self.long_entries[self.entry_counter]
-                        )
+            self.signal = self.get_liquidations_signal(symbol, "Buy", vwap, last_price)
+            if self.signal:
+                self.logger.info(
+                    "Creating Limit order with side: Buy and entry: {}".format(
+                        self.long_entries[self.entry_counter]
                     )
-                    self.logger.info(
-                        "liquidations thresh hold for Buy: {} liquidations are {}".format(
-                            self.liquidations_buy_thresh_hold, self.liquidations_dict
-                        )
+                )
+                self.logger.info(
+                    "liquidations thresh hold for Buy: {} liquidations are {}".format(
+                        self.liquidations_buy_thresh_hold, self.liquidations_dict
                     )
-                    self.fill_time = self.signal['fill_time']
-                    self.orders.append(self.limit_order(symbol, "Buy", self.amount, self.signal['price']))
-                    self.limit_order_time = self.get_datetime()
+                )
+                self.fill_time = self.signal['fill_time']
+                self.orders.append(self.limit_order(symbol, "Buy", self.amount, self.signal['price']))
+                self.limit_order_time = self.get_datetime()
 
     def strategy_run(self, symbol, position, last_price, vwap):
         position_size = self.get_position_size(position)
@@ -163,7 +160,7 @@ class LiquidationStrategy(BybitTools):
 
         if not self.in_a_trade and len(self.orders) == 0:
             self.update_liquidation_dict()
-            self.put_limit_order(symbol, vwap, last_price) # Send First Limit order
+            self.put_limit_order(symbol, vwap, last_price)  # Send First Limit order
 
         if self.limit_order_time and (self.get_datetime() - self.limit_order_time).seconds > self.fill_time:
             self.logger.info("Cancelling order as it didn't met time constrains")

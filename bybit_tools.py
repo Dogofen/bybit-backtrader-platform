@@ -18,6 +18,7 @@ class BybitTools(BybitOperations):
     fill_time = 0
     average_candle_count = 0
     spike_factor = 0
+    vlf_bullish_price = 0
     last_spiky_hill = False
     last_downhill = False
     minimum_liquidations = 0
@@ -138,24 +139,34 @@ class BybitTools(BybitOperations):
             self.logger.info("Targets factor is high {}".format(daily_range/last_price))
             return 'high'
 
-    def check_spike(self, symbol, array, side):
-        p_array = []
+    def check_bullish_vwap_liquidation_fibonacci(self, symbol, array, side, vwap):
         if side is "Buy":
+            last_kline = self.get_last_kline(symbol, '1')
+            last_price = last_kline['close']
+            if self.vlf_bullish_price > last_price - last_price * 0.002:
+                if self.vlf_bullish_price > last_kline['low']:
+                    price = last_price
+                else:
+                    price = self.vlf_bullish_price
+                self.vlf_bullish_price = 0
+                print('{} vwap_liquidation_fibonacci True'.format(self.get_date()))
+                self.logger.info("vwap_liquidation_fibonacci True, price: {}".format(price))
+                return {'signal': 'vlf', 'fill_time': 1440, 'price': price}
             if array[-1] > self.spike_factor * self.liquidations_buy_thresh_hold:
                 if 120 > (self.get_datetime() - self.return_datetime_from_liq_dict(array[-1], side)).seconds >= 60:
-                    print('{} Returning positive signal based on liquidations spike, liqs are: {}'.format(
-                        self.get_date(), array[-1])
+                    if array[-1] < 1700000:
+                        factor = 0.618
+                    else:
+                        factor = 0.236
+                    price = last_price - (vwap - last_price) * factor
+                    print('{} vwap_liquidation_fibonacci price update, liqs are: {} factor: {} price: {}'.format(
+                        self.get_date(), array[-1], factor, price)
                     )
-                    self.logger.info("Returning positive signal based on liquidations spike")
-                    kline = self.get_kline(symbol, '1', self.get_time_delta(3))
-                    for k in kline:
-                        p_array.append(k['low'])
-                    price = min(p_array)
-                    #return {'signal': 'spike', 'fill_time': 960, 'price': price}
-                    return False
-
-        if '--Test' not in sys.argv:
-            self.logger.info("Spike returned False, side:{} liq dict:{}".format(side, self.liquidations_dict))
+                    self.logger.info(
+                        "vwap_liquidation_fibonacci price update, liqs are: {} factor: {} price: {}".format(
+                            array[-1], factor, price)
+                    )
+                    self.vlf_bullish_price = price
         return False
 
     #def check_bullish_hammer(self, symbol, side, buy_array, sell_array, diff_array):
@@ -270,7 +281,15 @@ class BybitTools(BybitOperations):
             klines_array.append(float(k['high']) - float(k['low']))
         return sum(klines_array) / len(klines_array)
 
-    def get_liquidations_signal(self, symbol, side):
+    def check_entry(self, last_price, vwap):
+        if ((last_price / vwap) - 1) * 100 > float(self.short_entries[self.entry_counter]):
+            return True
+        elif ((vwap / last_price) - 1) * 100 > float(self.short_entries[self.entry_counter]):
+            return True
+        else:
+            return False
+
+    def get_liquidations_signal(self, symbol, side, vwap, last_price):
         sell_array = []
         buy_array = []
         array = []
@@ -300,17 +319,18 @@ class BybitTools(BybitOperations):
         #if sig:
         #    return sig
 
-        #sig = self.check_spike(symbol, array, side)
+        #sig = self.check_bullish_vwap_liquidation_fibonacci(symbol, array, side, vwap)
         #if sig:
         #    return sig
 
         if len(array) > 3:
-            sig = self.check_downhill(symbol, side, buy_array, sell_array, diff_array, th)
-            if sig:
-                return sig
-            sig = self.check_cliff(symbol, diff_array, array, side, average_candle)
-            if sig:
-                return sig
+            if self.check_entry(last_price, vwap):
+                sig = self.check_downhill(symbol, side, buy_array, sell_array, diff_array, th)
+                if sig:
+                    return sig
+                sig = self.check_cliff(symbol, diff_array, array, side, average_candle)
+                if sig:
+                    return sig
 
         return False
 
