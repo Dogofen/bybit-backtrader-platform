@@ -18,7 +18,7 @@ class BybitTools(BybitOperations):
     fill_time = 0
     average_candle_count = 0
     spike_factor = 0
-    vlf_bullish_price = 0
+    vlf_bullish_price = []
     last_spiky_hill = False
     last_downhill = False
     minimum_liquidations = 0
@@ -143,30 +143,32 @@ class BybitTools(BybitOperations):
         if side is "Buy":
             last_kline = self.get_last_kline(symbol, '1')
             last_price = last_kline['close']
-            if self.vlf_bullish_price > last_price - last_price * 0.002:
-                if self.vlf_bullish_price > last_kline['low']:
+            if self.vlf_bullish_price and self.vlf_bullish_price[-1] > last_price - last_price * 0.002:
+                if self.vlf_bullish_price[-1] > last_kline['low']:
                     price = last_price
                 else:
-                    price = self.vlf_bullish_price
-                self.vlf_bullish_price = 0
+                    price = self.vlf_bullish_price[-1]
+                self.vlf_bullish_price.remove(self.vlf_bullish_price[-1])
                 print('{} vwap_liquidation_fibonacci True'.format(self.get_date()))
                 self.logger.info("vwap_liquidation_fibonacci True, price: {}".format(price))
                 return {'signal': 'vlf', 'fill_time': 1440, 'price': price}
             if array[-1] > self.spike_factor * self.liquidations_buy_thresh_hold:
                 if 120 > (self.get_datetime() - self.return_datetime_from_liq_dict(array[-1], side)).seconds >= 60:
-                    if array[-1] < 1700000:
-                        factor = 0.618
-                    else:
-                        factor = 0.236
-                    price = last_price - (vwap - last_price) * factor
-                    print('{} vwap_liquidation_fibonacci price update, liqs are: {} factor: {} price: {}'.format(
-                        self.get_date(), array[-1], factor, price)
-                    )
-                    self.logger.info(
-                        "vwap_liquidation_fibonacci price update, liqs are: {} factor: {} price: {}".format(
-                            array[-1], factor, price)
-                    )
-                    self.vlf_bullish_price = price
+                    for factor in [0.236, 0.618]:
+                        price = last_price - (vwap - last_price) * factor
+                        print('{} vwap_liquidation_fibonacci price update, liqs are: {} factor: {} price: {}'.format(
+                            self.get_date(), array[-1], factor, price)
+                        )
+                        self.logger.info(
+                            "vwap_liquidation_fibonacci price update, liqs are: {} factor: {} price: {}".format(
+                                array[-1], factor, price)
+                        )
+                        self.vlf_bullish_price.append(price)
+                    self.vlf_bullish_price.sort()
+        elif side is "Sell" and self.vlf_bullish_price:
+            print("{} Resetting vlf price array.".format(self.get_date()))
+            self.logger.info("Resetting vlf price array.")
+            self.vlf_bullish_price = []
         return False
 
     #def check_bullish_hammer(self, symbol, side, buy_array, sell_array, diff_array):
@@ -210,7 +212,7 @@ class BybitTools(BybitOperations):
                 self.logger.info("Downhill returned False, side:{} liq dict:{}".format(side, self.liquidations_dict))
             return False
         if diff_array[-1] < -th and diff_array[-2] > th and diff_array[-3] < -self.minimum_liquidations:
-            if (self.get_datetime() - self.return_datetime_from_liq_dict(buy_array[-1], side)).seconds == 60:
+            if 120 > (self.get_datetime() - self.return_datetime_from_liq_dict(buy_array[-1], side)).seconds >= 60:
                 print('{} Returning positive signal based on downhill pattern'.format(self.get_date()))
                 self.logger.info("Returning positive signal based on 'downhill' Buy liquidations pattern")
                 price = self.get_last_price_close(symbol)
@@ -319,9 +321,9 @@ class BybitTools(BybitOperations):
         #if sig:
         #    return sig
 
-        #sig = self.check_bullish_vwap_liquidation_fibonacci(symbol, array, side, vwap)
-        #if sig:
-        #    return sig
+        sig = self.check_bullish_vwap_liquidation_fibonacci(symbol, array, side, vwap)
+        if sig:
+            return sig
 
         if len(array) > 3:
             if self.check_entry(last_price, vwap):

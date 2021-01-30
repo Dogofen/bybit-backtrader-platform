@@ -72,6 +72,10 @@ class LiquidationStrategy(BybitTools):
             self.logger.info("Stop Trading {} for the day as we lost money".format(self.signal['signal']))
             dt = self.get_datetime()
             self.stop_trade[self.signal['signal']] = datetime.datetime(dt.year, dt.month, dt.day+1, 2, 0)
+        elif self.win and self.signal['signal'] is 'vlf':
+            print("{} Resetting vlf price array.".format(self.get_date()))
+            self.logger.info("Resetting vlf price array.")
+            self.vlf_bullish_price = []
         self.win = False
         self.logger.info('---------------------------------- End ----------------------------------')
 
