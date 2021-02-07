@@ -1,6 +1,6 @@
 #!/bin/bash
-while TRUE
+while true
 do
-python create_liquidiations_pickle_dump.py
+python3 create_liquidiations_pickle_dump.py
 sleep 800
 done
