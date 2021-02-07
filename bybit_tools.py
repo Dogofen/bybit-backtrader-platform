@@ -84,7 +84,6 @@ class BybitTools(BybitOperations):
             self.bullish_factor_array.insert(0, 0)
         if len(self.bullish_factor_array) > 1500:
             self.bullish_factor_array.pop()
-        self.logger.info("Bullish array: {}, Factor: {}".format(self.bullish_factor_array, self.bullish_factor))
         self.bullish_factor = sum(self.bullish_factor_array) / len(self.bullish_factor_array)
 
     def update_last_big_deal(self, symbol):
