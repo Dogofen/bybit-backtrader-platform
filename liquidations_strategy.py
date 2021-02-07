@@ -7,7 +7,6 @@ class LiquidationStrategy(BybitTools):
     targets = {'Long': [], 'Short': []}
     stop_px = {'Long': '0', 'Short': '0'}
     amount = False
-    signal = False
     target_factor = 'low'
     coin = "BTC"
     limit_order_time = False
@@ -16,9 +15,6 @@ class LiquidationStrategy(BybitTools):
     _wait = False
     price_above = False
     last_vwap = False
-    long_entries = []
-    short_entries = []
-    entry_counter = 0
 
     def __init__(self):
         super(LiquidationStrategy, self).__init__()
@@ -37,21 +33,15 @@ class LiquidationStrategy(BybitTools):
             float(self.config["LiquidationHighTargets"]["Target1"]),
             float(self.config["LiquidationHighTargets"]["Target2"])
         ]
-        self.long_entries = [
-            self.config['LiquidationLongEntries']['LongEntry0'],
-            self.config['LiquidationLongEntries']['LongEntry1'],
-            self.config['LiquidationLongEntries']['LongEntry2'],
-            self.config['LiquidationLongEntries']['LongEntry3']
-            ]
-        self.short_entries = [
-            self.config['LiquidationShortEntries']['ShortEntry0'],
-            self.config['LiquidationShortEntries']['ShortEntry1'],
-            self.config['LiquidationShortEntries']['ShortEntry2'],
-            self.config['LiquidationShortEntries']['ShortEntry3']
-            ]
+        self.targets["downhill"] = [
+            float(self.config["DownHillTargets"]["Target0"]),
+            float(self.config["DownHillTargets"]["Target1"]),
+            float(self.config["DownHillTargets"]["Target2"])
+        ]
         self.stop_px["low"] = self.config["LiquidationLowTargets"]["StopPx"]
         self.stop_px["medium"] = self.config["LiquidationMediumTargets"]["StopPx"]
         self.stop_px["high"] = self.config["LiquidationHighTargets"]["StopPx"]
+        self.stop_px["downhill"] = self.config["DownHillTargets"]["StopPx"]
         self.amount = self.config["OTHER"]["Amount"]
         self.logger.info('Applying Liquidations Strategy')
 
@@ -62,20 +52,9 @@ class LiquidationStrategy(BybitTools):
         self.logger.info("Trade finished, win: {} time {}, cash at the end: {}".format(
             self.win, self.get_date(), self.get_cash(self.coin))
         )
-        if self.entry_counter < len(self.long_entries) - 1:
-            self.entry_counter += 1
         self.cancel_all_orders(symbol)
         self.in_a_trade = False
         self.amount = self.config["OTHER"]["Amount"]
-        if not self.win:
-            print("Stop Trading {} for the day as we lost money".format(self.signal['signal']))
-            self.logger.info("Stop Trading {} for the day as we lost money".format(self.signal['signal']))
-            dt = self.get_datetime()
-            self.stop_trade[self.signal['signal']] = datetime.datetime(dt.year, dt.month, dt.day+1, 2, 0)
-        elif self.win and self.signal['signal'] is 'vlf':
-            print("{} Resetting vlf price array.".format(self.get_date()))
-            self.logger.info("Resetting vlf price array.")
-            self.vlf_bullish_price = []
         self.win = False
         self.logger.info('---------------------------------- End ----------------------------------')
 
@@ -117,11 +96,7 @@ class LiquidationStrategy(BybitTools):
         if last_price > vwap:
             self.signal = self.get_liquidations_signal(symbol, "Sell", vwap, last_price)
             if self.signal:
-                self.logger.info(
-                    "Creating Limit order with side: Sell and entry: {}".format(
-                        self.short_entries[self.entry_counter]
-                    )
-                )
+                self.logger.info("Creating Limit order with side: Sell.")
                 self.logger.info(
                     "liquidations thresh hold for Sell: {} liquidations are {}".format(
                         self.liquidations_sell_thresh_hold, self.liquidations_dict
@@ -133,11 +108,7 @@ class LiquidationStrategy(BybitTools):
         if last_price < vwap:
             self.signal = self.get_liquidations_signal(symbol, "Buy", vwap, last_price)
             if self.signal:
-                self.logger.info(
-                    "Creating Limit order with side: Buy and entry: {}".format(
-                        self.long_entries[self.entry_counter]
-                    )
-                )
+                self.logger.info("Creating Limit order with side: Buy.")
                 self.logger.info(
                     "liquidations thresh hold for Buy: {} liquidations are {}".format(
                         self.liquidations_buy_thresh_hold, self.liquidations_dict
@@ -149,10 +120,7 @@ class LiquidationStrategy(BybitTools):
 
     def strategy_run(self, symbol, position, last_price, vwap):
         position_size = self.get_position_size(position)
-        dt = self.get_datetime()
-        for key in self.stop_trade.keys():
-            if self.stop_trade[key] and dt > self.stop_trade[key]:
-                self.stop_trade[key] = False
+        self.update_bullish_factor(vwap, last_price)
         if position_size == 0 and self.in_a_trade:  # Finish Operations
             self.finish_operations_for_trade(symbol)
 
@@ -183,9 +151,9 @@ class LiquidationStrategy(BybitTools):
                     self.update_liquidations(symbol)
                 sleep(1)
                 continue
-            if self.in_a_trade:
-                sleep(5)
             vwap = self.get_vwap(symbol)
             last_price = self.get_last_price_close(symbol)
             position = self.true_get_position(symbol)
             self.strategy_run(symbol, position, last_price, vwap)
+            if self.in_a_trade:
+                sleep(5)

@@ -6,23 +6,25 @@ from vwap_strategy import VwapStrategy
 from vwap_extreme_points_gatherer import VwapExtremePointsGatherer
 from vwap_combined_strategies import VwapCombinedStrategy
 from liquidations_strategy import LiquidationStrategy
+from statistics import Statistics
 
 strategy = {'vwap': VwapStrategy,
             'vwap_extreme_points': VwapExtremePointsStrategy,
             'vwap_extreme_points_gatherer': VwapExtremePointsGatherer,
             'vwap_combined': VwapCombinedStrategy,
-            'liquidations': LiquidationStrategy
+            'liquidations': LiquidationStrategy,
+            'statistics': Statistics
             }
 if '--Test' in sys.argv:
     data = bt.feeds.GenericCSVData(
-        dataname='BTC_1m.csv',
+        dataname='BTC.csv',
         datetime=0,
         high=2,
         close=4,
         open=1,
         volume=5,
         dateformat='%Y-%m-%d %H:%M:%S',
-        fromdate=datetime.datetime(2021, 1, 29, 2, 0, 0),
+        fromdate=datetime.datetime(2021, 2, 5, 2, 0, 0),
         #todate=datetime.datetime(2021, 1, 18, 2, 33, 0),
         timeframe=bt.TimeFrame.Minutes,
         compression=1)

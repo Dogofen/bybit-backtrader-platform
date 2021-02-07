@@ -36,8 +36,11 @@ class BybitOperations(bt.Strategy):
             self.liqs_1m = pickle.load(lq)
         with open('liquidations', 'rb') as lq:
             self.liqs = pickle.load(lq)
-
         self.logger.info("Finished BybitTools construction, proceeding")
+
+    @staticmethod
+    def upload_pickle():
+        return True
 
     def create_order(self, order_type, symbol, side, amount, price):
         self.logger.info(
@@ -75,7 +78,8 @@ class BybitOperations(bt.Strategy):
                 liquidation_dict[k] = self.liqs_1m[k]
         return liquidation_dict
 
-    def get_distance_from_vwap(self, last_price, vwap):
+    @staticmethod
+    def get_distance_from_vwap(last_price, vwap):
         distance = abs(last_price - vwap)
         return distance / last_price
 
@@ -99,10 +103,12 @@ class BybitOperations(bt.Strategy):
     def get_date(self):
         return bt.num2date(self.datas[0].datetime[0]).strftime('%Y-%m-%d %H:%M:%S')
 
-    def get_position_size(self, position):
+    @staticmethod
+    def get_position_size(position):
         return position.size
 
-    def get_position_side(self, position):
+    @staticmethod
+    def get_position_side(position):
         if position.size > 0:
             return "Buy"
         return "Sell"
@@ -112,7 +118,8 @@ class BybitOperations(bt.Strategy):
             return bt.num2date(self.datas[0].datetime[0])
         return bt.num2date(self.datas[0].datetime[0]).strftime('%d/%m/%Y, %H:%M')
 
-    def get_position_price(self, position):
+    @staticmethod
+    def get_position_price(position):
         return position.price
 
     def return_datetime_from_liq_dict(self, value, side):

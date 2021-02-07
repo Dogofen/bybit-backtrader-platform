@@ -1,8 +1,10 @@
 import bybit
 import configparser
 import datetime
+import pickle
 from time import sleep
 from botlogger import Logger
+import os
 
 
 class BybitOperations(object):
@@ -40,6 +42,8 @@ class BybitOperations(object):
         self.env = self.config['OTHER']['env']
         bot_logger = Logger()
         self.logger = bot_logger.init_logger()
+        with open('liquidations', 'rb') as lq:
+            self.liqs = pickle.load(lq)
 
         if self.env == 'test':
             test = True
@@ -102,6 +106,13 @@ class BybitOperations(object):
                 liquidations = False
                 fault_counter += 1
         return liquidations
+
+    def upload_pickle(self):
+        os.system('touch liq_occupied')
+        sleep(1)
+        with open('liquidations', 'rb') as lq:
+            self.liqs = pickle.load(lq)
+        os.system('rm liq_occupied')
 
     def update_liquidations(self, symbol):
         liqs = self.get_liquidations(symbol)
