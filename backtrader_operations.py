@@ -38,10 +38,6 @@ class BybitOperations(bt.Strategy):
             self.liqs = pickle.load(lq)
         self.logger.info("Finished BybitTools construction, proceeding")
 
-    @staticmethod
-    def upload_pickle():
-        return True
-
     def create_order(self, order_type, symbol, side, amount, price):
         self.logger.info(
             "Sending a Create Order command time => {} type => {} side =>{} amount=>{} price=>{}".format(
@@ -67,6 +63,9 @@ class BybitOperations(bt.Strategy):
 
     def get_time(self):
         return bt.num2date(self.datas[0].datetime[0]).strftime('%H:%M:%S')
+
+    def return_liquidations(self):
+        return self.liqs
 
     def get_current_liquidations_dict(self, from_time_in_minutes):
         liquidation_dict = {}

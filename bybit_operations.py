@@ -1,10 +1,8 @@
 import bybit
 import configparser
 import datetime
-import pickle
 from time import sleep
 from botlogger import Logger
-import os
 
 
 class BybitOperations(object):
@@ -42,8 +40,6 @@ class BybitOperations(object):
         self.env = self.config['OTHER']['env']
         bot_logger = Logger()
         self.logger = bot_logger.init_logger()
-        with open('liquidations', 'rb') as lq:
-            self.liqs = pickle.load(lq)
 
         if self.env == 'test':
             test = True
@@ -107,23 +103,20 @@ class BybitOperations(object):
                 fault_counter += 1
         return liquidations
 
-    def upload_pickle(self):
-        os.system('touch liq_occupied')
-        sleep(1)
-        with open('liquidations', 'rb') as lq:
-            self.liqs = pickle.load(lq)
-        os.system('rm liq_occupied')
-
     def update_liquidations(self, symbol):
+        dt = self.get_datetime() - datetime.timedelta(days=5)
         liqs = self.get_liquidations(symbol)
         place = 0
+        new_liquidations = []
         for liq in liqs:
             if liq in self.liquidations:
                 continue
             self.liquidations.insert(place, liq)
             place += 1
-        while len(self.liquidations) > 1500:
-            self.liquidations.pop()
+        for liq in self.liquidations:
+            if int(liq['time'] / 1000) > dt.timestamp():
+                new_liquidations.append(liq)
+        self.liquidations = new_liquidations
 
     def get_last_kline(self, symbol, interval):
         _from = int((datetime.datetime.now() - datetime.timedelta(minutes=int(interval) * 4)).timestamp())
@@ -169,6 +162,9 @@ class BybitOperations(object):
 
     def get_cash(self, coin):
         return self.bybit.Wallet.Wallet_getBalance(coin=coin).result()[0]['result'][coin]['wallet_balance']
+
+    def return_liquidations(self):
+        return self.liquidations
 
     def get_current_liquidations_dict(self, from_time_in_minutes):
         liquidation_dict = {}

@@ -355,8 +355,7 @@ class BybitTools(BybitOperations):
             self.logger.info("Enabling downhill as bullish factor is sufficient: {}".format(self.bullish_factor))
             self.enable_trade['downhill'] = True
         #average_candle = self.get_average_candle(symbol, self.average_candle_count)
-        self.upload_pickle()
-        self.update_buy_sell_thresh_hold(self.liqs, 4, 1)
+        self.update_buy_sell_thresh_hold(self.return_liquidations(), 4, 1)
 
         for k in self.liquidations_dict.keys():
             sell_array.append(self.liquidations_dict[k]["Sell"])
