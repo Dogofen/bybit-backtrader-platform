@@ -22,7 +22,7 @@ class Statistics(BybitTools):
         self.bullish_factor = sum(self.bullish_factor_array) / len(self.bullish_factor_array)
 
         dt = self.get_datetime()
-        if dt.minute == 0:
+        if dt.minute == 0 or dt.minute == 30:
             self.update_buy_sell_thresh_hold(self.liqs, 4, 15)
             print("{} Buy: {}, Sell: {}, Ratio: {}".format(
                 self.get_date(),
@@ -30,4 +30,4 @@ class Statistics(BybitTools):
                 self.liquidations_sell_thresh_hold,
                 self.liquidations_buy_thresh_hold / self.liquidations_sell_thresh_hold
             ))
-            print("{} Bullish factor: {}".format(self.get_date(), round(self.bullish_factor, 2)))
+            print("{} Bullish factor: {}".format(self.get_date(), self.bullish_factor))

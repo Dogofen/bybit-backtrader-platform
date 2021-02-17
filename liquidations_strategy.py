@@ -7,6 +7,7 @@ class LiquidationStrategy(BybitTools):
     targets = {'Long': [], 'Short': []}
     stop_px = {'Long': '0', 'Short': '0'}
     amount = False
+    initial_amount = False
     target_factor = 'low'
     coin = "BTC"
     limit_order_time = False
@@ -18,31 +19,24 @@ class LiquidationStrategy(BybitTools):
 
     def __init__(self):
         super(LiquidationStrategy, self).__init__()
-        self.targets["low"] = [
-                float(self.config["LiquidationLowTargets"]["Target0"]),
-                float(self.config["LiquidationLowTargets"]["Target1"]),
-                float(self.config["LiquidationLowTargets"]["Target2"])
-             ]
-        self.targets["medium"] = [
-                float(self.config["LiquidationMediumTargets"]["Target0"]),
-                float(self.config["LiquidationMediumTargets"]["Target1"]),
-                float(self.config["LiquidationMediumTargets"]["Target2"])
-            ]
-        self.targets["high"] = [
-            float(self.config["LiquidationHighTargets"]["Target0"]),
-            float(self.config["LiquidationHighTargets"]["Target1"]),
-            float(self.config["LiquidationHighTargets"]["Target2"])
+        self.targets["bear"] = [
+            float(self.config["BearTargets"]["Target0"]),
+            float(self.config["BearTargets"]["Target1"]),
+            float(self.config["BearTargets"]["Target2"])
         ]
         self.targets["downhill"] = [
             float(self.config["DownHillTargets"]["Target0"]),
             float(self.config["DownHillTargets"]["Target1"]),
             float(self.config["DownHillTargets"]["Target2"])
         ]
-        self.stop_px["low"] = self.config["LiquidationLowTargets"]["StopPx"]
-        self.stop_px["medium"] = self.config["LiquidationMediumTargets"]["StopPx"]
-        self.stop_px["high"] = self.config["LiquidationHighTargets"]["StopPx"]
+        self.stop_reset_time = {
+            'downhill': self.config["DownHillTargets"]["StopReset"],
+            'bear': self.config["BearTargets"]["StopReset"]
+        }
+        self.stop_px["bear"] = self.config["BearTargets"]["StopPx"]
         self.stop_px["downhill"] = self.config["DownHillTargets"]["StopPx"]
         self.amount = self.config["OTHER"]["Amount"]
+        self.initial_amount = self.config["OTHER"]["Amount"]
         self.logger.info('Applying Liquidations Strategy')
 
     def finish_operations_for_trade(self, symbol):
@@ -54,7 +48,8 @@ class LiquidationStrategy(BybitTools):
         )
         self.cancel_all_orders(symbol)
         self.in_a_trade = False
-        self.amount = self.config["OTHER"]["Amount"]
+        self.reset_stop = False
+        self.amount = self.initial_amount
         self.win = False
         self.logger.info('---------------------------------- End ----------------------------------')
 
@@ -64,7 +59,7 @@ class LiquidationStrategy(BybitTools):
 
     def start_trade(self, symbol, position):
         print("Trade started time:{}".format(self.get_date()))
-        self.target_factor = self.determine_targets_factor(symbol)
+        self.target_factor = self.determine_targets_factor()
         self.in_a_trade = True
         if len(self.orders) == 1:
             self.limit_order_time = False

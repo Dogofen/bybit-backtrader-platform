@@ -210,7 +210,7 @@ class BybitOperations(bt.Strategy):
         self.orders = []
 
     def cancel_order(self, symbol, order):
-        print("Cancelling order.")
+        print("{} Cancelling order.".format(self.get_date()))
         self.logger.info("Cancelling order: {}".format(order))
         self.cancel(order)
         self.orders.remove(order)

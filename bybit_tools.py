@@ -15,6 +15,7 @@ class BybitTools(BybitOperations):
     orders = []
     signal = {}
     enable_trade = {}
+    bear_sell_array = []
     live = False
     fill_time = 0
     average_candle_count = 0
@@ -28,8 +29,13 @@ class BybitTools(BybitOperations):
     bullish_factor_array = []
     bullish_factor = 0
     entry = {}
-    bullish_factor_threshold = 0.49
+    reset_stop = False
+    bullish_factor_threshold = {
+        'downhill': 0.49,
+        'bear': 0.45
+    }
     bullish_factor_last_updated = False
+    trade_start_time = False
 
     def __init__(self):
         super(BybitTools, self).__init__()
@@ -42,10 +48,17 @@ class BybitTools(BybitOperations):
         self.fill_time = 120
         self.enable_trade = {
             'downhill': False,
-            'cliff': False
+            'bear': False
         }
         self.average_candle_count = int(self.config['OTHER']['AverageCandleCount'])
-        self.entry['downhill'] = self.config['LiquidationEntries']['DownHill']
+        self.entry['downhill'] = [
+            self.config['LiquidationEntries']['DownHillMin'],
+            self.config['LiquidationEntries']['DownHillMax']
+            ]
+        self.entry['bear'] = [
+            self.config['LiquidationEntries']['BearMin'],
+            self.config['LiquidationEntries']['BearMax']
+            ]
         self.liquidations_buy_thresh_hold = 201426
         self.liquidations_sell_thresh_hold = 101241
         self.minimum_liquidations = 900
@@ -58,6 +71,10 @@ class BybitTools(BybitOperations):
 
     def __destruct(self):
         self.logger.info('---------------------------------- End !!!!! ----------------------------------')
+
+    @staticmethod
+    def get_vwap_price_diff(vwap, price):
+        return (abs(vwap - price)/price) * 100
 
     def get_day_open(self):
         date_now = self.get_datetime()
@@ -158,21 +175,10 @@ class BybitTools(BybitOperations):
         from_time_in_minutes = (_now - datetime.timedelta(seconds=2400))
         self.liquidations_dict = self.get_current_liquidations_dict(from_time_in_minutes)
 
-    def determine_targets_factor(self, symbol):
-        if self.signal['signal'] is 'downhill':
-            self.logger.info("Targets factor is downhill")
-            return 'downhill'
-        daily_range = self.get_daily_range(symbol)
-        last_price = self.get_last_price_close(symbol)
-        if daily_range/last_price < 0.05:
-            self.logger.info("Targets factor is low {}".format(daily_range/last_price))
-            return 'low'
-        if 0.09 > daily_range/last_price > 0.05:
-            self.logger.info("Targets factor is medium {}".format(daily_range/last_price))
-            return 'medium'
-        else:
-            self.logger.info("Targets factor is high {}".format(daily_range/last_price))
-            return 'high'
+    def determine_targets_factor(self):
+        if self.signal['signal'] is 'downhill' or self.signal['signal'] is 'bear':
+            self.logger.info("Targets factor is {}".format(self.signal['signal']))
+            return self.signal['signal']
 
     def check_bullish_vwap_liquidation_fibonacci(self, symbol, array, side, vwap):
         if side is "Buy":
@@ -206,16 +212,6 @@ class BybitTools(BybitOperations):
             self.vlf_bullish_price = []
         return False
 
-    #def check_bullish_hammer(self, symbol, side, buy_array, sell_array, diff_array):
-    #    if side is "Sell":
-    #        return False
-    #    last_candle = self.get_last_kline(symbol, '1')
-    #    if last_candle['close'] < last_candle['open']:
-    #        return False
-    #    if last_candle['open'] - last_candle['low'] > last_candle['close'] - last_candle['open']:
-    #        print('We have a hammer at {}'.format(self.get_date()))
-    #    return False
-
     def check_spiky_hill(self, symbol, side, diff_array, array, th):
         price_array = []
         if diff_array[-1] < -self.sell_spike_factor * th and diff_array[-2] > self.sell_spike_factor * th:
@@ -242,27 +238,86 @@ class BybitTools(BybitOperations):
                             return {'signal': 'spiky_hill',  'fill_time': 960, 'price': price}
         return False
 
-    def check_downhill(self, symbol, side, buy_array, sell_array, diff_array, th):
+    def check_downhill(self, symbol, side, buy_array, sell_array, diff_array, th, vwap):
         if not self.enable_trade['downhill']:
             return False
         if buy_array[-1] < self.minimum_liquidations or side is "Sell" or sell_array[-1] > self.minimum_liquidations:
             if '--Test' not in sys.argv:
                 self.logger.info("Downhill returned False, side:{} liq dict:{}".format(side, self.liquidations_dict))
             return False
-        if diff_array[-1] < -th and diff_array[-2] > th and diff_array[-3] < -self.minimum_liquidations:
-            if 120 > (self.get_datetime() - self.return_datetime_from_liq_dict(buy_array[-1], side)).seconds >= 60:
-                print(
-                    '{} Returning positive signal based on downhill pattern, bullish factor: {}'.format(
-                        self.get_date(), self.bullish_factor)
-                )
-                self.logger.info(
-                    "Returning positive signal based on 'downhill' Buy liquidations pattern, bullish factor: {}".format(
-                        self.bullish_factor)
-                )
-                price = self.get_last_price_close(symbol)
-                return {'signal': 'downhill', 'fill_time': 240, 'price': price}
+        try:
+            if diff_array[-1] < -th and diff_array[-2] > th and diff_array[-3] < -self.minimum_liquidations:
+                if 120 > (self.get_datetime() - self.return_datetime_from_liq_dict(buy_array[-1], side)).seconds >= 60:
+                    last_price = self.get_last_price_close(symbol)
+                    price = last_price - (vwap - last_price) * 0.618
+                    print(
+                        '{} Returning positive signal based on downhill pattern, bullish factor: {} diff:{}'.format(
+                            self.get_date(), self.bullish_factor, self.get_vwap_price_diff(vwap, price))
+                    )
+                    self.logger.info(
+                        "Returning positive 'downhill', bullish factor: {}, diff: {}".format(
+                            self.bullish_factor, self.get_vwap_price_diff(vwap, price))
+                    )
+                    return {'signal': 'downhill', 'fill_time': 7200, 'price': price}
+        except Exception as e:
+            self.logger.warning('downhill exception: {}'.format(e))
         if '--Test' not in sys.argv:
             self.logger.info("Downhill returned False, side:{} liq dict:{}".format(side, self.liquidations_dict))
+        return False
+
+    def check_bear(self, symbol, side, buy_array, sell_array, diff_array, th, vwap):
+        if side is "Buy" or not self.enable_trade['bear']:
+            if self.bear_sell_array:
+                print("{} Resetting bear sell price array.".format(self.get_date()))
+                self.logger.info("Resetting bear price array.")
+                self.bear_sell_array = []
+            return False
+
+        kline = self.get_last_kline(symbol, '1')
+        last_price = kline['close']
+        if self.bear_sell_array and self.bear_sell_array[-1] < last_price + last_price * 0.002:
+            if self.bear_sell_array[-1] < kline['high']:
+                price = last_price
+            else:
+                price = self.bear_sell_array[-1]
+            self.bear_sell_array.remove(self.bear_sell_array[-1])
+            print('{} bear price True, price: {}, bull factor: {}'.format(self.get_date(), price, self.bullish_factor))
+            self.logger.info("bear price True, price: {}, bull factor: {}".format(price, self.bullish_factor))
+            return {'signal': 'bear', 'fill_time': 1440, 'price': price}
+
+        curr_time = self.get_datetime().strftime('%d/%m/%Y, %H:%M')
+        if curr_time in self.liquidations_dict:
+            buy_liqs = self.liquidations_dict[curr_time]['Buy']
+        else:
+            return False
+        if buy_liqs > self.minimum_liquidations:
+            i = 1
+            try:
+                while sell_array[-i] != 0:
+                    if len(sell_array) <= 2:
+                        return False
+                    i += 1
+                if sell_array[-1-i] > th and sell_array[-i-1] > sell_array[i]:
+                    price = kline['high']
+                    p236 = (price - vwap)*0.236 + price
+                    p618 = (price - vwap)*0.62 + price
+                    price_diff = self.get_vwap_price_diff(vwap, kline['close'])
+
+                    print('{} Positive Bear factor: {}, price:{}, 236: {} 618: {} diff:{}'.format(
+                        self.get_date(), self.bullish_factor, price, p236, p618, price_diff))
+                    self.logger.info(
+                        'Positive Bear factor: {}, price:{}, 236: {} 618: {} diff:{}'.format(
+                            self.bullish_factor, price, p236, p618, price_diff
+                        )
+                    )
+                    if price_diff < 0.5:
+                        price = p236
+                    else:
+                        price = p618
+                    self.bear_sell_array.append(price)
+                    self.bear_sell_array.sort()
+            except Exception as e:
+                print('{} exception: {}'.format(self.get_date(), e))
         return False
 
     def check_cliff(self, symbol, diff_array, array, side, average_candle):
@@ -328,69 +383,91 @@ class BybitTools(BybitOperations):
         return sum(klines_array) / len(klines_array)
 
     def check_entry(self, last_price, vwap, signal):
-        if ((last_price / vwap) - 1) * 100 > float(self.entry[signal]):
-            return True
-        elif ((vwap / last_price) - 1) * 100 > float(self.entry[signal]):
+        if float(self.entry[signal][1]) > self.get_vwap_price_diff(vwap, last_price) > float(self.entry[signal][0]):
             return True
         else:
             return False
 
+    def enable_bearish_signal(self, signal):
+        if self.bullish_factor > self.bullish_factor_threshold[signal] and self.enable_trade[signal]:
+            print("{} Stopping {} as bullish factor doesn't meet constrains: {}".format(
+                self.get_date(), signal, self.bullish_factor))
+            self.logger.info("Stopping {} as bullish factor doesn't meet constrains: {}".format(
+                signal, self.bullish_factor))
+            self.enable_trade[signal] = False
+            return False
+        elif self.bullish_factor < self.bullish_factor_threshold[signal] and not self.enable_trade[signal]:
+            print(
+                "{} Enabling {} as bullish factor sufficient: {}".format(self.get_date(), signal, self.bullish_factor)
+            )
+            self.logger.info("Enabling {} as bullish factor is sufficient: {}".format(signal, self.bullish_factor))
+            self.enable_trade[signal] = True
+            return True
+        else:
+            return self.enable_trade[signal]
+
+    def enable_bullish_signal(self, signal):
+        if self.bullish_factor < self.bullish_factor_threshold[signal] and self.enable_trade[signal]:
+            print("{} Stopping {} as bullish factor too low: {}".format(self.get_date(), signal, self.bullish_factor))
+            self.logger.info("Stopping {} as bullish factor too low: {}".format(signal, self.bullish_factor))
+            self.enable_trade[signal] = False
+            return False
+        elif self.bullish_factor > self.bullish_factor_threshold[signal] and not self.enable_trade[signal]:
+            print(
+                "{} Enabling {} as bullish factor sufficient: {}".format(self.get_date(), signal, self.bullish_factor)
+            )
+            self.logger.info("Enabling {} as bullish factor is sufficient: {}".format(signal, self.bullish_factor))
+            self.enable_trade[signal] = True
+            return True
+        else:
+            return self.enable_trade[signal]
+
+    def enable_signal(self, signal):
+        if signal == 'bear':
+            return self.enable_bearish_signal(signal)
+        else:
+            return self.enable_bullish_signal(signal)
+
     def get_liquidations_signal(self, symbol, side, vwap, last_price):
+        signals = ['downhill', 'bear']
+        check_signal = []
         sell_array = []
         buy_array = []
-        array = []
         diff_array = []
         th = 0
-        if side == 'Sell':
+        for sig in signals:
+            if self.enable_signal(sig) and self.check_entry(last_price, vwap, sig):
+                check_signal.append(sig)
+        if not check_signal:
             return False
-        if not self.check_entry(last_price, vwap, 'downhill'):
-            return False
-        if self.bullish_factor < self.bullish_factor_threshold and self.enable_trade['downhill']:
-            print("{} Stopping downhill as bullish factor too low: {}".format(self.get_date(), self.bullish_factor))
-            self.logger.info("Stopping downhill as bullish factor too low: {}".format(self.bullish_factor))
-            self.enable_trade['downhill'] = False
-            return False
-        if self.bullish_factor > self.bullish_factor_threshold and not self.enable_trade['downhill']:
-            print("{} Enabling downhill as bullish factor sufficient: {}".format(self.get_date(), self.bullish_factor))
-            self.logger.info("Enabling downhill as bullish factor is sufficient: {}".format(self.bullish_factor))
-            self.enable_trade['downhill'] = True
-        #average_candle = self.get_average_candle(symbol, self.average_candle_count)
-        self.update_buy_sell_thresh_hold(self.return_liquidations(), 4, 1)
 
         for k in self.liquidations_dict.keys():
             sell_array.append(self.liquidations_dict[k]["Sell"])
             buy_array.append(self.liquidations_dict[k]["Buy"])
         buy_array.reverse()
         sell_array.reverse()
+        if side is "Buy" and len(buy_array) < 3 or side is "Sell" and len(sell_array) < 3:
+            return False
+        self.update_buy_sell_thresh_hold(self.return_liquidations(), 4, 1)
+
         if side is "Buy":
-            if len(buy_array) < 3:
-                return False
-            array = buy_array
             diff_array = np.diff(buy_array)
             th = self.liquidations_buy_thresh_hold
 
         if side is "Sell":
-            if len(sell_array) < 3:
-                return False
-            array = sell_array
             diff_array = np.diff(sell_array)
             th = self.liquidations_sell_thresh_hold
 
-        #sig = self.check_bullish_hammer(symbol, side, buy_array, sell_array, diff_array)
-        #if sig:
-        #    return sig
-
-        #sig = self.check_bullish_vwap_liquidation_fibonacci(symbol, array, side, vwap)
-        #if sig:
-        #    return sig
-
-        if len(array) > 3:
-            sig = self.check_downhill(symbol, side, buy_array, sell_array, diff_array, th)
+        for check_sig in check_signal:
+            if check_sig == 'downhill':
+                _check = self.check_downhill
+            elif check_sig == 'bear':
+                _check = self.check_bear
+            else:
+                _check = self.check_downhill
+            sig = _check(symbol, side, buy_array, sell_array, diff_array, th, vwap)
             if sig:
                 return sig
-        #        sig = self.check_cliff(symbol, diff_array, array, side, average_candle)
-        #        if sig:
-        #            return sig
 
         return False
 
@@ -414,6 +491,7 @@ class BybitTools(BybitOperations):
 
     def initiate_trade(self, symbol, quantity, side, targets, stop_px):
         self.logger.info('---------------------------------- New Trade ----------------------------------')
+        self.trade_start_time = self.get_datetime()
         position = self.true_get_position(symbol)
         self.logger.info("Current Trade, symbol: {} side: {} size: {} price: {}".format(
             symbol,
@@ -440,6 +518,17 @@ class BybitTools(BybitOperations):
         position = self.true_get_position(symbol)
         position_size = self.get_position_size(position)
         stop_price = self.get_position_price(position)
+        reset_interval = False
+        if self.trade_start_time and abs(position_size) == int(self.initial_amount):
+            reset_interval = self.get_datetime() - self.trade_start_time
+        if reset_interval and reset_interval.seconds > int(self.stop_reset_time[self.signal['signal']]) * 60 * 60:
+            self.trade_start_time = False
+            self.reset_stop = True
+            self.logger.info('Amending Stop as it reached time constrains.')
+            print("{} Amending Stop as it reached time constrains.".format(self.get_date()))
+            stop_price = str(int(stop_price))
+            self.edit_stop(symbol, stop, quantity, stop_price)
+
         if abs(position_size) != quantity:
             self.win = True
             if abs(position_size) == int(self.config['OTHER']['Amount'])/3 and amend_stop_price:
@@ -448,6 +537,9 @@ class BybitTools(BybitOperations):
                     stop_price = stop_price - targets[0] * stop_price
                 else:
                     stop_price = stop_price + targets[0] * stop_price
+            elif self.reset_stop:
+                quantity = abs(position_size)
+                return quantity
             stop_price = str(int(stop_price))
             quantity = abs(position_size)
             self.logger.info("Amending stop as limit was filled, price:{} quantity:{}".format(stop_price, quantity))
