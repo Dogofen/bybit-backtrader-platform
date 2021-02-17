@@ -116,6 +116,12 @@ class LiquidationStrategy(BybitTools):
     def strategy_run(self, symbol, position, last_price, vwap):
         position_size = self.get_position_size(position)
         self.update_bullish_factor(vwap, last_price)
+        dt = self.get_datetime()
+        if dt.minute == 30 or dt.minute == 0:
+            self.update_buy_sell_thresh_hold(self.return_liquidations(), 4, 1)
+            self.logger.info('{} bullish factor: {}, liqs factor: {}'.format(
+                self.get_date(), self.bullish_factor, self.liqs_factor
+            ))
         if position_size == 0 and self.in_a_trade:  # Finish Operations
             self.finish_operations_for_trade(symbol)
 
@@ -133,6 +139,9 @@ class LiquidationStrategy(BybitTools):
             self.logger.info("Cancelling order as it didn't met time constrains")
             self.limit_order_time = False
             self.cancel_order(symbol, self.orders[0])
+
+        if self.live:
+            self.update_liquidations(symbol)
 
     def next(self):
         symbol = "BTCUSD"
