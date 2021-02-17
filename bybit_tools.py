@@ -242,8 +242,6 @@ class BybitTools(BybitOperations):
         if not self.enable_trade['downhill']:
             return False
         if buy_array[-1] < self.minimum_liquidations or side is "Sell" or sell_array[-1] > self.minimum_liquidations:
-            if '--Test' not in sys.argv:
-                self.logger.info("Downhill returned False, side:{} liq dict:{}".format(side, self.liquidations_dict))
             return False
         try:
             if diff_array[-1] < -th and diff_array[-2] > th and diff_array[-3] < -self.minimum_liquidations:
