@@ -8,6 +8,7 @@ class LiquidationStrategy(BybitTools):
     stop_px = {'Long': '0', 'Short': '0'}
     amount = False
     initial_amount = False
+    amount_percentage = False
     target_factor = 'low'
     coin = "BTC"
     limit_order_time = False
@@ -29,15 +30,38 @@ class LiquidationStrategy(BybitTools):
             float(self.config["DownHillTargets"]["Target1"]),
             float(self.config["DownHillTargets"]["Target2"])
         ]
+        self.targets["lsb"] = [
+            float(self.config["LsbTargets"]["Target0"]),
+            float(self.config["LsbTargets"]["Target1"]),
+            float(self.config["LsbTargets"]["Target2"])
+        ]
+        self.targets["lmb"] = [
+            float(self.config["LmbTargets"]["Target0"]),
+            float(self.config["LmbTargets"]["Target1"]),
+            float(self.config["LmbTargets"]["Target2"])
+        ]
+        self.targets["lhb"] = [
+            float(self.config["LhbTargets"]["Target0"]),
+            float(self.config["LhbTargets"]["Target1"]),
+            float(self.config["LhbTargets"]["Target2"])
+        ]
         self.stop_reset_time = {
             'downhill': self.config["DownHillTargets"]["StopReset"],
-            'bear': self.config["BearTargets"]["StopReset"]
+            'bear': self.config["BearTargets"]["StopReset"],
+            'lsb': self.config["LsbTargets"]["StopReset"],
+            'lmb': self.config["LmbTargets"]["StopReset"],
+            'lhb': self.config["LhbTargets"]["StopReset"]
         }
+        symbol = 'BTCUSD'
         self.stop_px["bear"] = self.config["BearTargets"]["StopPx"]
+        self.stop_px["lmb"] = self.config["LmbTargets"]["StopPx"]
+        self.stop_px["lhb"] = self.config["LhbTargets"]["StopPx"]
+        self.stop_px["lsb"] = self.config["LsbTargets"]["StopPx"]
         self.stop_px["downhill"] = self.config["DownHillTargets"]["StopPx"]
-        self.amount = self.config["OTHER"]["Amount"]
-        self.initial_amount = self.config["OTHER"]["Amount"]
-        self.logger.info('Applying Liquidations Strategy')
+        self.amount_percentage = float(self.config['OTHER']['AmountPercentage'])
+        self.initial_amount = self.get_current_amount(symbol, self.amount_percentage)
+        self.amount = self.initial_amount
+        self.logger.info('Applying Liquidations Strategy starting with amount: {}'.format(self.initial_amount))
 
     def finish_operations_for_trade(self, symbol):
         print("Trade finished, win: {} time:{}  cash at the end: {}".format(
@@ -49,7 +73,9 @@ class LiquidationStrategy(BybitTools):
         self.cancel_all_orders(symbol)
         self.in_a_trade = False
         self.reset_stop = False
+        self.initial_amount = self.get_current_amount(symbol, self.amount_percentage)
         self.amount = self.initial_amount
+        self.logger.info("New amount is : {}".format(self.initial_amount))
         self.win = False
         self.logger.info('---------------------------------- End ----------------------------------')
 

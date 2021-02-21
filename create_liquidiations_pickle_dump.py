@@ -1,30 +1,28 @@
-import configparser
 import pickle
 import datetime
-import bybit
+import bybit_tools
 import os.path
 
+bt = bybit_tools.BybitTools()
 if os.path.isfile('liq_occupied'):
     print("Pickle File is occupied, Exiting.")
     exit()
 
 with open('liquidations', 'rb') as lq:
     liqs = pickle.load(lq)
-config = configparser.ConfigParser()
-config.read('conf.ini')
 
-API_KEY = config['API_KEYS']['api_key']
-API_SECRET = config['API_KEYS']['api_secret']
-
-client = bybit.bybit(test=False, api_key=API_KEY, api_secret=API_SECRET)
-new_liqs = client.Market.Market_liqRecords(symbol="BTCUSD", limit=1000).result()[0]['result']
+new_liqs = bt.bybit.Market.Market_liqRecords(symbol="BTCUSD", limit=1000).result()[0]['result']
 place = 0
 for tt in new_liqs:
     if tt in liqs:
         continue
     liqs.insert(place, tt)
     place += 1
-print(len(liqs))
+
+bt.update_buy_sell_thresh_hold(liqs, 4, 15)
+bt.update_liqs_factor(liqs, 4, 15)
+print('{} liqs: {}, liq_factor: {}, liq overall factor: {}'.format(
+    bt.get_date(), len(liqs), bt.liqs_factor, bt.liqs_overall_power_ratio))
 with open('liquidations', 'wb') as lq:
     pickle.dump(liqs, lq)
 
