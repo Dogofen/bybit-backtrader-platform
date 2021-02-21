@@ -143,7 +143,7 @@ class LiquidationStrategy(BybitTools):
         position_size = self.get_position_size(position)
         self.update_bullish_factor(vwap, last_price)
         dt = self.get_datetime()
-        if dt.minute == 30 or dt.minute == 0 and dt.second < 10:
+        if not dt.minute % 30 and dt.second < 5:
             self.update_buy_sell_thresh_hold(self.return_liquidations(), 4, 1)
             self.update_liqs_factor(self.return_liquidations(), 4, 15)
             if self.live:

@@ -24,7 +24,7 @@ if '--Test' in sys.argv:
         open=1,
         volume=5,
         dateformat='%Y-%m-%d %H:%M:%S',
-        fromdate=datetime.datetime(2021, 2, 15, 2, 0, 0),
+        fromdate=datetime.datetime(2021, 2, 20, 2, 0, 0),
         #todate=datetime.datetime(2021, 1, 18, 2, 33, 0),
         timeframe=bt.TimeFrame.Minutes,
         compression=1)
