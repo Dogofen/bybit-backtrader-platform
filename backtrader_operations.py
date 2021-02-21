@@ -54,6 +54,10 @@ class BybitOperations(bt.Strategy):
             order = self.sell(exectype=order_type, size=amount, price=price)
         return order
 
+    @staticmethod
+    def get_current_amount(symbol, amount_percentage):
+        return '3'
+
     def true_get_position(self, symbol):
         position = self.position
         return position

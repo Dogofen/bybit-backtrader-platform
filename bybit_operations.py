@@ -150,6 +150,11 @@ class BybitOperations(object):
     def get_stop_order(self):
         return self.orders[0]
 
+    def get_current_amount(self, symbol, amount_percentage):
+        cash = self.get_cash('BTC')
+        price_close = self.get_last_price_close(symbol)
+        return int((cash * amount_percentage * price_close) / 3) * 3
+
     def get_time_open(self):
         return self.day_open_dict[self.get_month()]
 
