@@ -147,8 +147,8 @@ class LiquidationStrategy(BybitTools):
             self.update_buy_sell_thresh_hold(self.return_liquidations(), 4, 1)
             self.update_liqs_factor(self.return_liquidations(), 4, 15)
             if self.live:
-                self.logger.info('bullish factor: {}, liqs factor: {}'.format(
-                    self.bullish_factor, self.liqs_factor
+                self.logger.info('bullish factor: {}, liqs factor: {}, over all factor: {}'.format(
+                    self.bullish_factor, self.liqs_factor, self.liqs_overall_power_ratio
                 ))
             else:
                 self.logger.info('{} bullish factor: {}, liqs factor: {}'.format(
