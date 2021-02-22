@@ -284,52 +284,42 @@ class BybitOperations(object):
 
     def true_cancel_stop(self, symbol):
         fault_counter = 0
-        while len(self.true_get_stop_order(symbol)) != 0:
-            if fault_counter > 5:
-                self.logger.error(
-                    "Cancel stop Failed, fault counter has {} tries".format(fault_counter)
-                )
-                break
+        while fault_counter < 5:
             try:
-                self.logger.info(self.bybit.Conditional.Conditional_cancelAll(symbol=symbol).result())
+                res = self.bybit.Conditional.Conditional_cancelAll(symbol=symbol).result()[0]
+                ret_msg = res['ret_msg']
+                if ret_msg == 'OK':
+                    return True
             except Exception as e:
-                self.logger.error("Cancel Stop returned: {}".format(e))
+                self.logger.error("Cancel Stop Failed: {}".format(e))
                 sleep(2)
             fault_counter += 1
             sleep(1)
 
     def true_cancel_orders(self, symbol):
         fault_counter = 0
-        while len(self.true_get_active_orders(symbol)) != 0:
-            if fault_counter > 5:
-                self.logger.error(
-                    "Cancel orders Failed, fault counter has {} tries".format(fault_counter)
-                )
-                break
+        while fault_counter < 5:
             try:
-                self.logger.info(self.bybit.Order.Order_cancelAll(symbol=symbol).result())
+                res = self.bybit.Order.Order_cancelAll(symbol=symbol).result()[0]
+                ret_msg = res['ret_msg']
+                if ret_msg == 'OK':
+                    return True
             except Exception as e:
                 self.logger.error("Cancel orders returned: {}".format(e))
                 sleep(2)
             fault_counter += 1
             sleep(1)
+        return False
 
     def get_time_delta(self, count):
         return float(int(self.get_datetime().timestamp()) - 60 * count)
 
     def cancel_all_orders(self, symbol):
-        if len(self.true_get_stop_order(symbol)) != 0:
-            try:
-                self.true_cancel_stop(symbol)
-            except Exception as e:
-                self.logger.error("Failed cancelling Orders {}".format(e))
-                return
-        if len(self.true_get_active_orders(symbol)) != 0:
-            try:
-                self.true_cancel_orders(symbol)
-            except Exception as e:
-                self.logger.error("Failed cancelling Orders {}".format(e))
-                return
+        res_stop = self.true_cancel_stop(symbol)
+        res_order = self.true_cancel_orders(symbol)
+        if not res_order or not res_stop:
+            self.logger.error("Failed cancelling orders:{} stop: {}".format(res_order, res_stop))
+            return False
         self.logger.info("All Orders been cancelled")
         self.orders = []
         return True
