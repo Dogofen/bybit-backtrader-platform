@@ -631,6 +631,11 @@ class BybitTools(BybitOperations):
             diff_array = np.diff(sell_array)
             th = self.liquidations_sell_thresh_hold
 
+        if self.live:
+            self.logger.info('bullish factor: {}, liqs factor: {}, over all factor: {} distance: {}'.format(
+                self.bullish_factor, self.liqs_factor, self.liqs_overall_power_ratio,
+                self.get_vwap_price_diff(vwap, last_price)
+            ))
         for check_sig in check_signal:
             if check_sig == 'downhill':
                 _check = self.check_downhill

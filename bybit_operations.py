@@ -1,6 +1,7 @@
 import bybit
 import configparser
 import datetime
+import pickle
 from time import sleep
 from botlogger import Logger
 
@@ -45,8 +46,14 @@ class BybitOperations(object):
             test = True
         else:
             test = False
+        with open('liquidations_Live', 'rb') as lq:
+            self.liquidations = pickle.load(lq)
         self.bybit = bybit.bybit(test=test, api_key=self.API_KEY, api_secret=self.API_SECRET)
         self.logger.info("Finished BybitTools construction, proceeding")
+
+    def __del__(self):
+        with open('liquidations_Live', 'wb') as lq:
+            pickle.dump(self.liquidations, lq)
 
     @staticmethod
     def get_date():
