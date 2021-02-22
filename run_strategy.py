@@ -17,14 +17,14 @@ strategy = {'vwap': VwapStrategy,
             }
 if '--Test' in sys.argv:
     data = bt.feeds.GenericCSVData(
-        dataname='BTC_Feb.csv',
+        dataname='BTC_Jan_1m.csv',
         datetime=0,
         high=2,
         close=4,
         open=1,
         volume=5,
         dateformat='%Y-%m-%d %H:%M:%S',
-        fromdate=datetime.datetime(2021, 2, 20, 2, 0, 0),
+        fromdate=datetime.datetime(2021, 1, 1, 2, 0, 0),
         #todate=datetime.datetime(2021, 1, 18, 2, 33, 0),
         timeframe=bt.TimeFrame.Minutes,
         compression=1)

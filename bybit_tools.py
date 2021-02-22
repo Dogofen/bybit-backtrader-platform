@@ -1,6 +1,7 @@
 import datetime
 import numpy as np
 from time import sleep
+import pickle
 from botlogger import Logger
 import sys
 if '--Test' in sys.argv:
@@ -83,6 +84,9 @@ class BybitTools(BybitOperations):
             self.config['LiquidationEntries']['BearMin'],
             self.config['LiquidationEntries']['BearMax']
             ]
+        if self.live:
+            with open('bullish_factor_Live', 'rb') as lq:
+                self.bullish_factor_array = pickle.load(lq)
         self.liq_factor_bar = float(self.config['OTHER']['liqFactorBar'])
         self.liquidations_buy_thresh_hold = 201426
         self.liquidations_sell_thresh_hold = 101241
@@ -95,8 +99,10 @@ class BybitTools(BybitOperations):
         self.logger = bot_logger.init_logger()
         self.logger.info('Boti Trading system initiated')
 
-    def __destruct(self):
-        self.logger.info('---------------------------------- End !!!!! ----------------------------------')
+    def __del__(self):
+        if self.live:
+            with open('bullish_factor_Live', 'wb') as lq:
+                pickle.dump(self.bullish_factor_array, lq)
 
     @staticmethod
     def get_vwap_price_diff(vwap, price):
@@ -191,9 +197,9 @@ class BybitTools(BybitOperations):
         element = 0
         while element == 0 and len(buy_array) > 0:
             element = buy_array.pop()
-        if len(buy_array) > 3:
+        if len(buy_array) >= 3:
             self.liquidations_buy_thresh_hold = buy_array[len(buy_array) - int(len(buy_array) * 0.8)]
-        if len(sell_array) > 3:
+        if len(sell_array) >= 3:
             self.liquidations_sell_thresh_hold = sell_array[len(sell_array) - int(len(sell_array) * 0.8)]
 
     def update_liqs_factor(self, liquidation_list, interval, mod):
@@ -607,6 +613,16 @@ class BybitTools(BybitOperations):
             self.stop_lmb = False
             self.stop_lhb = False
             self.stop_lsb = False
+        if self.live:
+            dt = self.get_datetime()
+            if dt.second < 7:
+                self.logger.info('bullish factor: {}, liqs factor: {}, over all factor: {} distance: {}'.format(
+                    self.bullish_factor, self.liqs_factor, self.liqs_overall_power_ratio,
+                    self.get_vwap_price_diff(vwap, last_price)
+                ))
+        self.update_buy_sell_thresh_hold(self.return_liquidations(), 4, 1)
+        self.update_liqs_factor(self.return_liquidations(), 4, 15)
+
         for sig in signals:
             if self.enable_signal(sig) and self.check_entry(last_price, vwap, sig):
                 check_signal.append(sig)
@@ -620,8 +636,6 @@ class BybitTools(BybitOperations):
         sell_array.reverse()
         if side is "Buy" and len(buy_array) < 3 or side is "Sell" and len(sell_array) < 3:
             return False
-        self.update_buy_sell_thresh_hold(self.return_liquidations(), 4, 1)
-        self.update_liqs_factor(self.return_liquidations(), 4, 15)
 
         if side is "Buy":
             diff_array = np.diff(buy_array)
@@ -631,11 +645,6 @@ class BybitTools(BybitOperations):
             diff_array = np.diff(sell_array)
             th = self.liquidations_sell_thresh_hold
 
-        if self.live:
-            self.logger.info('bullish factor: {}, liqs factor: {}, over all factor: {} distance: {}'.format(
-                self.bullish_factor, self.liqs_factor, self.liqs_overall_power_ratio,
-                self.get_vwap_price_diff(vwap, last_price)
-            ))
         for check_sig in check_signal:
             if check_sig == 'downhill':
                 _check = self.check_downhill
