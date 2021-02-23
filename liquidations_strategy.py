@@ -1,4 +1,5 @@
 import datetime
+import pickle
 from time import sleep
 from bybit_tools import BybitTools
 import os
@@ -21,6 +22,8 @@ class LiquidationStrategy(BybitTools):
 
     def __init__(self):
         super(LiquidationStrategy, self).__init__()
+        self.update_buy_sell_thresh_hold(self.return_liquidations(), 4, 1)
+        self.update_liqs_factor(self.return_liquidations(), 4, 15)
         self.targets["bear"] = [
             float(self.config["BearTargets"]["Target0"]),
             float(self.config["BearTargets"]["Target1"]),
@@ -63,6 +66,13 @@ class LiquidationStrategy(BybitTools):
         self.initial_amount = self.get_current_amount(symbol, self.amount_percentage)
         self.amount = self.initial_amount
         self.logger.info('Applying Liquidations Strategy starting with amount: {}'.format(self.initial_amount))
+
+    def __del__(self):
+        if self.live:
+            with open('liquidations_Live', 'wb') as lq:
+                pickle.dump(self.liquidations, lq)
+            with open('bullish_factor_Live', 'wb') as lq:
+                pickle.dump(self.bullish_factor_array, lq)
 
     def finish_operations_for_trade(self, symbol):
         print("Trade finished, win: {} time:{}  cash at the end: {}".format(
@@ -144,13 +154,12 @@ class LiquidationStrategy(BybitTools):
         position_size = self.get_position_size(position)
         self.update_bullish_factor(vwap, last_price)
         dt = self.get_datetime()
-        if not dt.minute % 30 and dt.second < 5:
+        if not dt.minute % 30 and dt.second < 5 and not self.live:
             self.update_buy_sell_thresh_hold(self.return_liquidations(), 4, 1)
             self.update_liqs_factor(self.return_liquidations(), 4, 15)
-            if not self.live:
-                self.logger.info('{} bullish factor: {}, liqs factor: {}'.format(
-                    self.get_date(), self.bullish_factor, self.liqs_factor
-                ))
+            self.logger.info('{} bullish factor: {}, liqs factor: {}'.format(
+                self.get_date(), self.bullish_factor, self.liqs_factor
+            ))
         if position_size == 0 and self.in_a_trade:  # Finish Operations
             self.finish_operations_for_trade(symbol)
 
@@ -192,4 +201,5 @@ class LiquidationStrategy(BybitTools):
                 sleep(5)
             if os.path.exists('close'):
                 os.system('rm close')
+                self.__del__()
                 self.live = False

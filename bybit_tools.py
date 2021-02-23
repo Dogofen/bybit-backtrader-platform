@@ -8,6 +8,7 @@ if '--Test' in sys.argv:
     from backtrader_operations import BybitOperations
 else:
     from bybit_operations import BybitOperations
+import os
 
 
 class BybitTools(BybitOperations):
@@ -84,7 +85,7 @@ class BybitTools(BybitOperations):
             self.config['LiquidationEntries']['BearMin'],
             self.config['LiquidationEntries']['BearMax']
             ]
-        if self.live:
+        if self.live and os.path.exists('bullish_factor_Live'):
             with open('bullish_factor_Live', 'rb') as lq:
                 self.bullish_factor_array = pickle.load(lq)
         self.liq_factor_bar = float(self.config['OTHER']['liqFactorBar'])
@@ -98,11 +99,6 @@ class BybitTools(BybitOperations):
         self.bullish_factor_last_updated = self.get_datetime()
         self.logger = bot_logger.init_logger()
         self.logger.info('Boti Trading system initiated')
-
-    def __del__(self):
-        if self.live:
-            with open('bullish_factor_Live', 'wb') as lq:
-                pickle.dump(self.bullish_factor_array, lq)
 
     @staticmethod
     def get_vwap_price_diff(vwap, price):
@@ -238,8 +234,11 @@ class BybitTools(BybitOperations):
             liquidations_buy_thresh_hold = buy_array[len(buy_array) - int(len(buy_array) * 0.8)]
         if len(sell_array) > 3:
             liquidations_sell_thresh_hold = sell_array[len(sell_array) - int(len(sell_array) * 0.8)]
-        self.liqs_factor = liquidations_buy_thresh_hold / liquidations_sell_thresh_hold
+        if liquidations_sell_thresh_hold != 0:
+            self.liqs_factor = liquidations_buy_thresh_hold / liquidations_sell_thresh_hold
         self.liqs_overall_power = sum(buy_array) + sum(sell_array)
+        if sum(sell_array) == 0:
+            return
         self.liqs_overall_power_ratio = sum(buy_array) / sum(sell_array)
 
     def update_buy_sell_counter_trend(self, liquidation_list, interval, mod):
@@ -620,8 +619,6 @@ class BybitTools(BybitOperations):
                     self.bullish_factor, self.liqs_factor, self.liqs_overall_power_ratio,
                     self.get_vwap_price_diff(vwap, last_price)
                 ))
-        self.update_buy_sell_thresh_hold(self.return_liquidations(), 4, 1)
-        self.update_liqs_factor(self.return_liquidations(), 4, 15)
 
         for sig in signals:
             if self.enable_signal(sig) and self.check_entry(last_price, vwap, sig):
@@ -637,6 +634,9 @@ class BybitTools(BybitOperations):
         if side is "Buy" and len(buy_array) < 3 or side is "Sell" and len(sell_array) < 3:
             return False
 
+        self.update_buy_sell_thresh_hold(self.return_liquidations(), 4, 1)
+        self.update_liqs_factor(self.return_liquidations(), 4, 15)
+        
         if side is "Buy":
             diff_array = np.diff(buy_array)
             th = self.liquidations_buy_thresh_hold
