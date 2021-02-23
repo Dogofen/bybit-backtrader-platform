@@ -612,9 +612,12 @@ class BybitTools(BybitOperations):
             self.stop_lmb = False
             self.stop_lhb = False
             self.stop_lsb = False
+            
         if self.live:
             dt = self.get_datetime()
             if dt.second < 7:
+                self.update_buy_sell_thresh_hold(self.return_liquidations(), 4, 1)
+                self.update_liqs_factor(self.return_liquidations(), 4, 15)
                 self.logger.info('bullish factor: {}, liqs factor: {}, over all factor: {} distance: {}'.format(
                     self.bullish_factor, self.liqs_factor, self.liqs_overall_power_ratio,
                     self.get_vwap_price_diff(vwap, last_price)
@@ -634,8 +637,9 @@ class BybitTools(BybitOperations):
         if side is "Buy" and len(buy_array) < 3 or side is "Sell" and len(sell_array) < 3:
             return False
 
-        self.update_buy_sell_thresh_hold(self.return_liquidations(), 4, 1)
-        self.update_liqs_factor(self.return_liquidations(), 4, 15)
+        if not self.live:
+            self.update_buy_sell_thresh_hold(self.return_liquidations(), 4, 1)
+            self.update_liqs_factor(self.return_liquidations(), 4, 15)
         
         if side is "Buy":
             diff_array = np.diff(buy_array)
