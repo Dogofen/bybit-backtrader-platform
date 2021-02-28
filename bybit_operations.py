@@ -94,24 +94,18 @@ class BybitOperations(object):
         self.bybit.Order.Order_replace(symbol=symbol, order_id=order_id, p_r_price=str(price)).result()
 
     def get_liquidations(self, symbol):
-        liquidations = False
-        fault_counter = 0
-        while liquidations is False:
-            if fault_counter > 5:
-                self.logger.error("Get liquidations reached it's max tries")
-                break
-            try:
-                liquidations = self.bybit.Market.Market_liqRecords(symbol=symbol, limit=1000).result()[0]['result']
-            except Exception as e:
-                if fault_counter > 1:
-                    self.logger.error("Get liquidations has failed {}".format(e))
-                liquidations = False
-                fault_counter += 1
+        try:
+            liquidations = self.bybit.Market.Market_liqRecords(symbol=symbol, limit=1000).result()[0]['result']
+        except Exception as e:
+            self.logger.error("Get liquidations has failed {}".format(e))
+            liquidations = []
         return liquidations
 
     def update_liquidations(self, symbol):
         dt = self.get_datetime() - datetime.timedelta(days=5)
         liqs = self.get_liquidations(symbol)
+        if type(liqs) != list:
+            self.logger.warning("Update liquidations exited without updating list.")
         place = 0
         new_liquidations = []
         for liq in liqs:

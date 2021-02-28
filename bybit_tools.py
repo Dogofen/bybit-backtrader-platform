@@ -612,7 +612,7 @@ class BybitTools(BybitOperations):
             self.stop_lmb = False
             self.stop_lhb = False
             self.stop_lsb = False
-            
+
         if self.live:
             dt = self.get_datetime()
             if dt.second < 7:
