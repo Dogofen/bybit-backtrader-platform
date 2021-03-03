@@ -337,6 +337,7 @@ class BybitOperations(object):
 
             fault_counter += 1
             sleep(1)
+        position['result']['rate_limit_status'] = rate_limit_status
         return position['result']
 
     def true_get_active_orders(self, symbol):

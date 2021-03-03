@@ -595,6 +595,22 @@ class BybitTools(BybitOperations):
         else:
             return self.enable_trade[signal]
 
+    def sleep_if_rate_limit(self, rate_limit):
+        if rate_limit > 80:
+            return
+        elif 60 < rate_limit < 80:
+            self.logger.info("Rate limit is low: {}, sleeping for 3 seconds".format(rate_limit))
+            sleep(3)
+        elif 40 < rate_limit < 60:
+            self.logger.info("Rate limit is low: {}, sleeping for 5 seconds".format(rate_limit))
+            sleep(5)
+        elif 20 < rate_limit < 40:
+            self.logger.info("Rate limit is low: {}, sleeping for 10 seconds".format(rate_limit))
+            sleep(10)
+        else:
+            self.logger.info("Rate limit is low: {}, sleeping for 20 seconds".format(rate_limit))
+            sleep(20)
+
     def enable_signal(self, signal):
         if signal == 'bear':
             return self.enable_bearish_signal(signal)
@@ -612,16 +628,6 @@ class BybitTools(BybitOperations):
             self.stop_lmb = False
             self.stop_lhb = False
             self.stop_lsb = False
-
-        if self.live:
-            dt = self.get_datetime()
-            if dt.second < 7:
-                self.update_buy_sell_thresh_hold(self.return_liquidations(), 4, 1)
-                self.update_liqs_factor(self.return_liquidations(), 4, 15)
-                self.logger.info('bullish factor: {}, liqs factor: {}, over all factor: {} distance: {}'.format(
-                    self.bullish_factor, self.liqs_factor, self.liqs_overall_power_ratio,
-                    self.get_vwap_price_diff(vwap, last_price)
-                ))
 
         for sig in signals:
             if self.enable_signal(sig) and self.check_entry(last_price, vwap, sig):

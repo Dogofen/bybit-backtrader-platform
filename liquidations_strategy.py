@@ -151,6 +151,16 @@ class LiquidationStrategy(BybitTools):
                 self.limit_order_time = self.get_datetime()
 
     def strategy_run(self, symbol, position, last_price, vwap):
+        if self.live:
+            dt = self.get_datetime()
+            if dt.second < 7:
+                self.update_buy_sell_thresh_hold(self.return_liquidations(), 4, 1)
+                self.update_liqs_factor(self.return_liquidations(), 4, 15)
+                self.logger.info('bullish factor: {}, liqs factor: {}, over all factor: {} distance: {}'.format(
+                    self.bullish_factor, self.liqs_factor, self.liqs_overall_power_ratio,
+                    self.get_vwap_price_diff(vwap, last_price)
+                ))
+            self.sleep_if_rate_limit(position['rate_limit_status'])
         position_size = self.get_position_size(position)
         self.update_bullish_factor(vwap, last_price)
         dt = self.get_datetime()
