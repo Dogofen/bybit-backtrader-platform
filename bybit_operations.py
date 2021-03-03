@@ -97,7 +97,7 @@ class BybitOperations(object):
         try:
             liquidations = self.bybit.Market.Market_liqRecords(symbol=symbol, limit=1000).result()[0]['result']
         except Exception as e:
-            self.logger.error("Get liquidations has failed {}".format(e))
+            self.logger.warning("Get liquidations has failed {}".format(e))
             liquidations = []
         return liquidations
 
