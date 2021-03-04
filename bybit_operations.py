@@ -320,7 +320,6 @@ class BybitOperations(object):
         position = False
         rate_limit_status = False
         fault_counter = 0
-        size = 0
         while position is False:
             if fault_counter > 10:
                 self.logger.error("position Failed to retrieved fault counter has {} tries".format(fault_counter))
@@ -328,16 +327,14 @@ class BybitOperations(object):
             position = self.bybit.Positions.Positions_myPosition(symbol=symbol).result()[0]
             try:
                 rate_limit_status = position['rate_limit_status']
-                size = position['result']['size']
+                position['result']['rate_limit_status'] = rate_limit_status
             except Exception as e:
-                self.logger.error("get position returned: {} error was: {} size: {}".format(position, e, size))
-                self.logger.info("self rate limit: {}".format(rate_limit_status))
+                self.logger.error("get position returned: {} error was: {}".format(position, e))
                 position = False
                 sleep(2)
 
             fault_counter += 1
             sleep(1)
-        position['result']['rate_limit_status'] = rate_limit_status
         return position['result']
 
     def true_get_active_orders(self, symbol):
