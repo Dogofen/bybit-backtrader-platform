@@ -21,8 +21,8 @@ for tt in new_liqs:
 
 bt.update_buy_sell_thresh_hold(liqs, 4, 15)
 bt.update_liqs_factor(liqs, 4, 15)
-print('{} liqs: {}, liq_factor: {}, liq overall factor: {}'.format(
-    bt.get_date(), len(liqs), bt.liqs_factor, bt.liqs_overall_power_ratio))
+print('{} liqs: {}, liq_factor: {}, liq overall factor: {}, weighted factor: {}'.format(
+    bt.get_date(), len(liqs), bt.liqs_factor, bt.liqs_overall_power_ratio, bt.liqs_weighted_ratio))
 with open('liquidations', 'wb') as lq:
     pickle.dump(liqs, lq)
 

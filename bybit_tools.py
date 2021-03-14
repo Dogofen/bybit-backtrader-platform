@@ -37,6 +37,7 @@ class BybitTools(BybitOperations):
     stop_lsb = False
     liqs_overall_power = 0
     liqs_overall_power_ratio = 0
+    liqs_weighted_ratio = 0
     bullish_factor_threshold = {
         'downhill': 0.49,
         'bear': 0.45,
@@ -240,6 +241,8 @@ class BybitTools(BybitOperations):
         if sum(sell_array) == 0:
             return
         self.liqs_overall_power_ratio = sum(buy_array) / sum(sell_array)
+        diff = self.liqs_overall_power_ratio - self.liqs_factor
+        self.liqs_weighted_ratio = self.liqs_factor + diff / 2
 
     def update_buy_sell_counter_trend(self, liquidation_list, interval, mod):
         liq_m_dict = {}
@@ -359,6 +362,13 @@ class BybitTools(BybitOperations):
                 self.get_vwap_price_diff(vwap, last_price),
                 last_price)
             )
+            self.logger.info(
+                "Bullish liqs with small distance True: {}, bullish factor: {}, distance: {}, price: {}".format(
+                    self.liqs_factor,
+                    self.bullish_factor,
+                    self.get_vwap_price_diff(vwap, last_price),
+                    last_price)
+            )
             self.stop_lsb = True
             price = self.get_last_price_close(signal_args['symbol'])
             return {'signal': 'lsb', 'fill_time': 7200, 'price': price}
@@ -378,6 +388,14 @@ class BybitTools(BybitOperations):
                 self.get_vwap_price_diff(vwap, last_price),
                 last_price)
             )
+            self.logger.info(
+                "Bullish liqs with medium distance True: {}, bullish factor: {}, distance: {}, price: {}".format(
+                    self.get_date(),
+                    self.liqs_factor,
+                    self.bullish_factor,
+                    self.get_vwap_price_diff(vwap, last_price),
+                    last_price)
+            )
             self.stop_lmb = True
             price = self.get_last_price_close(signal_args['symbol'])
             return {'signal': 'lmb', 'fill_time': 7200, 'price': price}
@@ -396,6 +414,13 @@ class BybitTools(BybitOperations):
                 self.bullish_factor,
                 self.get_vwap_price_diff(vwap, last_price),
                 last_price)
+            )
+            self.logger.info(
+                "Bullish liqs with high distance True: {}, bullish factor: {}, distance: {}, price: {}".format(
+                    self.liqs_factor,
+                    self.bullish_factor,
+                    self.get_vwap_price_diff(vwap, last_price),
+                    last_price)
             )
             self.stop_lhb = True
             price = self.get_last_price_close(signal_args['symbol'])
@@ -734,6 +759,7 @@ class BybitTools(BybitOperations):
         position_size = self.get_position_size(position)
         stop_price = self.get_position_price(position)
         reset_interval = False
+        # if time constrains have met and no profit taken
         if self.trade_start_time and abs(position_size) == int(self.initial_amount):
             reset_interval = self.get_datetime() - self.trade_start_time
         if reset_interval and reset_interval.seconds > int(self.stop_reset_time[self.signal['signal']]) * 60 * 60:
@@ -752,9 +778,6 @@ class BybitTools(BybitOperations):
                     stop_price = stop_price - targets[0] * stop_price
                 else:
                     stop_price = stop_price + targets[0] * stop_price
-            elif self.reset_stop:
-                quantity = abs(position_size)
-                return quantity
             stop_price = str(int(stop_price))
             quantity = abs(position_size)
             self.logger.info("Amending stop as limit was filled, price:{} quantity:{}".format(stop_price, quantity))

@@ -38,13 +38,13 @@ class Statistics(BybitTools):
         if dt.minute == 0 or dt.minute == 30:
             self.update_buy_sell_thresh_hold(self.return_liquidations(), days_interval, 15)
             self.update_liqs_factor(self.return_liquidations(), days_interval, 15)
-            print("{} Buy: {}, Sell: {}, Ratio: {}, Power Factor: {}, Overall Factor: {}, Overall Ratio: {}".format(
+            print("{} Buy: {}, Sell: {}, Ratio: {}, Overall Factor: {}, Overall Ratio: {}, Weighted: {}, ".format(
                 self.get_date(),
                 self.liquidations_buy_thresh_hold,
                 self.liquidations_sell_thresh_hold,
                 self.liqs_factor,
-                round(((self.liquidations_buy_thresh_hold + self.liquidations_buy_thresh_hold) / power100) * 100, 2),
                 round(self.liqs_overall_power / overall_divider, 2),
-                self.liqs_overall_power_ratio
+                self.liqs_overall_power_ratio,
+                self.liqs_weighted_ratio
             ))
             print("{} Bullish factor: {}".format(self.get_date(), self.bullish_factor))
