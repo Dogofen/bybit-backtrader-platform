@@ -106,6 +106,7 @@ class BybitOperations(object):
         liqs = self.get_liquidations(symbol)
         if type(liqs) != list:
             self.logger.warning("Update liquidations exited without updating list.")
+            return
         place = 0
         new_liquidations = []
         for liq in liqs:
