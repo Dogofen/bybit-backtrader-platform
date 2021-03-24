@@ -205,6 +205,9 @@ class LiquidationStrategy(BybitTools):
                 continue
             vwap = self.get_vwap(symbol)
             last_price = self.get_last_price_close(symbol)
+            if not last_price:
+                self.logger.warning("Last price could not be retrieved. repeating loop")
+                continue
             position = self.true_get_position(symbol)
             self.strategy_run(symbol, position, last_price, vwap)
             if self.in_a_trade:
